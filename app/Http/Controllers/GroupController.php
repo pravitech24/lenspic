@@ -217,6 +217,7 @@ class GroupController extends Controller
         $this->checkAdmin($group);
         if ($user->id === $group->creator_id) return back()->with('error', 'Cannot remove creator.');
         $group->members()->detach($user->id);
+        app(\App\Services\AuditLogger::class)->log("group.member_removed", $user, $group, [], [], ["member_id" => $user->id]);
         return back()->with('success', 'Member removed.');
     }
 
