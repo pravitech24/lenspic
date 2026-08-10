@@ -14,6 +14,8 @@ class Group extends Model
         'face_recognition_enabled', 'privacy',
         'event_code','invitation_token','invitation_expires_at','event_code_expires_at',
         'membership_status','membership_limit','location',
+        'anyone_with_link_can_join','anonymous_access_mode','downloads_enabled',
+        'participants_can_edit_identity','access_policy_version',
     ];
 
     protected $casts = [
@@ -26,6 +28,9 @@ class Group extends Model
         'face_recognition_enabled' => 'boolean',
         'invitation_expires_at' => 'datetime',
         'event_code_expires_at' => 'datetime',
+        'anyone_with_link_can_join' => 'boolean',
+        'downloads_enabled' => 'boolean',
+        'participants_can_edit_identity' => 'boolean',
     ];
 
     protected static function boot()
