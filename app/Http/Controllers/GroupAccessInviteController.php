@@ -8,9 +8,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use App\Services\AuditLogger;
 
 class GroupAccessInviteController extends Controller {
-    private function authorizeOwner(Group $group): void { abort_unless($group->isAdmin(auth()->user()),403); }
+    private function authorizeOwner(Group $group): void { \Illuminate\Support\Facades\Gate::authorize("manageInvitations", $group); }
     private function child(Group $group,GroupAccessInvite $invite): void { abort_unless($invite->group_id===$group->id,404); }
     public function index(Group $group) { $this->authorizeOwner($group); $invites=$group->accessInvites()->orderBy('access_type')->get(); return view('groups.access-invites',compact('group','invites')); }
     public function store(Request $request,Group $group) { $this->authorizeOwner($group); $data=$request->validate(['access_type'=>['required',Rule::in([GroupAccessInvite::PARTIAL,GroupAccessInvite::FULL])]]); $invite=GroupAccessInvite::firstOrCreate(['group_id'=>$group->id,'access_type'=>$data['access_type']],['access_code'=>GroupAccessInvite::generateCode(),'invitation_token'=>Str::random(48),'created_by'=>auth()->id()]); return back()->with('success',$invite->label.' invitation enabled.'); }
@@ -19,5 +20,5 @@ class GroupAccessInviteController extends Controller {
     public function revoke(Group $group,GroupAccessInvite $invite) { $this->authorizeOwner($group);$this->child($group,$invite);$invite->update(['is_active'=>false,'revoked_at'=>now()]);$this->audit($group,$invite,'revoked');return back()->with('success','Invitation revoked. Existing members keep their access.'); }
     public function reactivate(Group $group,GroupAccessInvite $invite) { $this->authorizeOwner($group);$this->child($group,$invite);$invite->update(['is_active'=>true,'revoked_at'=>null]);$this->audit($group,$invite,'reactivated');return back()->with('success','Invitation reactivated.'); }
     public function print(Group $group,GroupAccessInvite $invite) { $this->authorizeOwner($group);$this->child($group,$invite);return view('groups.access-invite-print',compact('group','invite')); }
-    private function audit(Group $g,GroupAccessInvite $i,string $action,array $meta=[]): void { GroupAccessAudit::create(['group_id'=>$g->id,'access_invite_id'=>$i->id,'user_id'=>auth()->id(),'action'=>$action,'metadata'=>$meta,'created_at'=>now()]); }
+    private function audit(Group $g,GroupAccessInvite $i,string $action,array $meta=[]): void { GroupAccessAudit::create(["group_id"=>$g->id,"access_invite_id"=>$i->id,"user_id"=>auth()->id(),"action"=>$action,"metadata"=>$meta,"created_at"=>now()]); app(AuditLogger::class)->log("invitation.".$action,$i,$g,[],[],$meta); }
 }

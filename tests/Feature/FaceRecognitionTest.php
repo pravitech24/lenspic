@@ -34,6 +34,7 @@ class FaceRecognitionTest extends TestCase
             'creator_id' => $user->id,
             'privacy' => 'link_only',
             'face_recognition_enabled' => true,
+            'anonymous_access_mode' => 'face_only',
         ]);
 
         $selfiePath = 'selfies/' . $group->id . '/' . $user->id . '.jpg';
@@ -128,6 +129,7 @@ class FaceRecognitionTest extends TestCase
             'creator_id' => $creator->id,
             'privacy' => 'link_only',
             'face_recognition_enabled' => true,
+            'anonymous_access_mode' => 'face_only',
         ]);
 
         $photoPath = 'photos/' . $group->id . '/guest-match.jpg';

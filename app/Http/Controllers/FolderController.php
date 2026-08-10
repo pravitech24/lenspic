@@ -142,28 +142,11 @@ class FolderController extends Controller
 
     private function checkAccess(Group $group): void
     {
-        if ($group->privacy === 'public') {
-            return;
-        }
-
-        if (Auth::check() && $group->isMember(Auth::user())) {
-            return;
-        }
-
-        abort(403, 'Access denied.');
+        \Illuminate\Support\Facades\Gate::authorize("view", $group);
     }
 
     private function checkWriteAccess(Group $group): void
     {
-        $user = Auth::user();
-        if (!$user) {
-            abort(403, 'Permission denied.');
-        }
-
-        if ($group->isAdmin($user)) {
-            return;
-        }
-
-        abort(403, 'Permission denied.');
+        \Illuminate\Support\Facades\Gate::authorize("create", [\App\Models\Folder::class, $group]);
     }
 }

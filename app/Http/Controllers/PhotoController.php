@@ -54,7 +54,7 @@ class PhotoController extends Controller
         }
 
         $user = Auth::user();
-        abort_unless($group->isAdmin($user),403,'Only group administrators can upload event photos.');
+        \Illuminate\Support\Facades\Gate::authorize('upload', $group);
         $uploaded = 0;
 
         foreach ($files as $file) {
@@ -185,8 +185,9 @@ class PhotoController extends Controller
 
     public function destroy(Group $group, Photo $photo)
     {
+        abort_unless($photo->group_id === $group->id, 404);
         $user = Auth::user();
-        if (!$group->isAdmin($user)) abort(403);
+        \Illuminate\Support\Facades\Gate::authorize('delete', $photo);
         Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));
         $photo->delete();
         if (request()->wantsJson()) return response()->json(['deleted' => true]);
@@ -426,6 +427,6 @@ class PhotoController extends Controller
 
         return back()->with('success', "$moved photo(s) moved successfully.");
     }
-    private function requireFullAccess(Group $group): void { $user=Auth::user(); abort_unless($user && $group->hasFullAccess($user),403,'This page requires Full Access.'); }
-    private function requirePhotoAccess(Group $group,Photo $photo): void { abort_unless($photo->group_id===$group->id,404);$user=Auth::user();if($user&&$group->hasFullAccess($user))return;$highlighted=$photo->folder_id&&$group->folders()->whereKey($photo->folder_id)->where('highlighted',true)->exists();$matched=in_array($photo->id,(array)request()->session()->get('face_matches.'.$group->id,[]),true);abort_unless($group->isMember($user)&&($highlighted||$matched),403,'This photo is not available with Partial Access.'); }
+    private function requireFullAccess(Group $group): void { \Illuminate\Support\Facades\Gate::authorize("viewFullGallery", $group); }
+    private function requirePhotoAccess(Group $group,Photo $photo): void { abort_unless($photo->group_id===$group->id,404); \Illuminate\Support\Facades\Gate::authorize("view", $photo); }
 }

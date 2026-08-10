@@ -114,7 +114,7 @@ Route::middleware('auth')->group(function () {
 });
 
 // Super Admin Routes
-Route::middleware('auth')->prefix('super-admin')->name('super-admin.')->group(function () {
+Route::middleware(['auth','platform.admin:super'])->prefix('super-admin')->name('super-admin.')->group(function () {
     Route::get('/', [\App\Http\Controllers\SuperAdminController::class, 'dashboard'])->name('dashboard');
 
     // Users
@@ -150,7 +150,7 @@ Route::middleware('auth')->prefix('super-admin')->name('super-admin.')->group(fu
 });
 
 // Admin Routes (legacy)
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth','platform.admin'])->prefix('admin')->name('admin.')->group(function () {
     Route::get('/',             [\App\Http\Controllers\AdminController::class, 'dashboard'])->name('dashboard');
     Route::get('/users',        [\App\Http\Controllers\AdminController::class, 'users'])->name('users');
     Route::get('/users/{user}/edit',   [\App\Http\Controllers\AdminController::class, 'editUser'])->name('users.edit');

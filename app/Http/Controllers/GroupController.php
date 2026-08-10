@@ -148,7 +148,7 @@ class GroupController extends Controller
 
     public function destroy(Group $group)
     {
-        $this->checkAdmin($group);
+        \Illuminate\Support\Facades\Gate::authorize("delete", $group);
         foreach ($group->photos as $photo) {
             Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));
         }
@@ -270,14 +270,11 @@ class GroupController extends Controller
 
     private function checkAccess(Group $group)
     {
-        if ($group->privacy === 'public') return;
-        if (Auth::check() && $group->isAdmin(Auth::user())) return;
-        if (Auth::check() && $group->isMember(Auth::user())) return;
-        abort(403, 'Access denied.');
+        \Illuminate\Support\Facades\Gate::authorize("view", $group);
     }
 
     private function checkAdmin(Group $group)
     {
-        if (!$group->isAdmin(Auth::user())) abort(403, 'Admins only.');
+        \Illuminate\Support\Facades\Gate::authorize("update", $group);
     }
 }

@@ -5,12 +5,13 @@ namespace App\Http\Controllers;
 use App\Services\FaceRecognitionService;
 use App\Models\Group;
 use Illuminate\Http\Request;
+use App\Services\GroupAccessResolver;
 
 class GuestController extends Controller
 {
-    public function viewGroup(Group $group)
+    public function viewGroup(Group $group, GroupAccessResolver $access)
     {
-        if (!$group->is_active) abort(404);
+        abort_unless($group->is_active && $access->role($group, null) === "anonymous_full", 404);
         $photos = $group->photos()->latest()->paginate(30);
         return view('guest.group', compact('group', 'photos'));
     }
@@ -36,8 +37,9 @@ class GuestController extends Controller
         return redirect()->route('guest.group', ['group' => $group]);
     }
 
-    public function selfieMatch(Request $request, Group $group, FaceRecognitionService $faceRecognitionService)
+    public function selfieMatch(Request $request, Group $group, FaceRecognitionService $faceRecognitionService, GroupAccessResolver $access)
     {
+        abort_unless($group->is_active && in_array($access->role($group, null), ["anonymous_face_only", "anonymous_full"], true), 404);
         $request->validate([
             'name'   => 'required|string',
             'phone'  => 'required|string',
