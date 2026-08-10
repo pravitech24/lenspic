@@ -1,0 +1,4 @@
+@extends('layouts.app')
+@section('title','Welcome')
+@section('content')<div class="success-shell"><div class="success-card"><div class="check">✓</div><h1>Welcome!</h1><p>You have successfully joined <strong>{{ $group->name }}</strong>.</p><a class="btn btn-primary btn-lg" href="{{ route('groups.show',$group) }}">Open Group</a></div></div>@endsection
+@push('styles')<style>.success-shell{min-height:calc(100vh - 60px);display:grid;place-items:center;padding:24px;background:#ecfdf5}.success-card{text-align:center;background:#fff;padding:42px;border-radius:22px;box-shadow:var(--shadow-lg)}.success-card p{color:var(--muted);margin:8px 0 22px}.check{width:72px;height:72px;display:grid;place-items:center;margin:0 auto 15px;border-radius:50%;background:#10b981;color:#fff;font-size:38px;animation:pop .4s ease}@keyframes pop{50%{transform:scale(1.15)}}</style>@endpush
