@@ -1,0 +1,22 @@
+<?php
+namespace Tests\Feature;
+use App\Contracts\ProtectedMediaStorage;
+use App\Models\{Group,MediaAsset,MediaVariant,Photo,User};
+use App\Services\Media\CloudFrontUrlSigner;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\{Hash,Storage};
+use RuntimeException;
+use Tests\TestCase;
+class PrivateMediaArchitectureTest extends TestCase {
+ use RefreshDatabase;
+ protected function setUp(): void{parent::setUp();config(['media.disk'=>'private_local','media.delivery_driver'=>'local']);Storage::fake('private_local');}
+ private function user(string $email):User{return User::create(['name'=>'User','email'=>$email,'password'=>Hash::make('password'),'status'=>'active','account_type'=>'photographer']);}
+ private function group(User $owner):Group{$group=Group::create(['name'=>'Event','creator_id'=>$owner->id]);$group->members()->attach($owner->id,['role'=>'admin','membership_status'=>'active','access_type'=>'full_access']);return $group;}
+ public function test_new_upload_creates_private_original_optimized_and_thumbnail_variants():void{$owner=$this->user('owner@example.com');$group=$this->group($owner);$response=$this->actingAs($owner)->postJson(route('photos.store',$group),['photos'=>[UploadedFile::fake()->image('safe.jpg',1200,900)]]);$response->assertOk()->assertJson(['uploaded'=>1]);$asset=MediaAsset::with('variants')->firstOrFail();$this->assertSame('private_local',$asset->storage_disk);$this->assertCount(3,$asset->variants);$this->assertEqualsCanonicalizing(['original','optimized','thumbnail'],$asset->variants->pluck('variant_type')->all());foreach($asset->variants as $variant){Storage::disk('private_local')->assertExists($variant->object_key);$this->assertStringNotContainsString($asset->original_filename,$variant->object_key);$this->assertStringNotContainsString('..',$variant->object_key);}Storage::disk('public')->assertMissing($asset->original_object_key);}
+ public function test_authorization_is_required_before_private_media_delivery():void{$owner=$this->user('owner@example.com');$outsider=$this->user('outsider@example.com');$asset=$this->asset($this->group($owner));$url=route('media.show',[$asset,'optimized']);$this->get($url)->assertForbidden();$this->actingAs($outsider)->get($url)->assertForbidden();$this->actingAs($owner)->get($url)->assertOk()->assertHeader('Cache-Control','no-store, private');}
+ public function test_member_of_another_event_cannot_access_media():void{$firstOwner=$this->user('one@example.com');$secondOwner=$this->user('two@example.com');$asset=$this->asset($this->group($firstOwner));$this->group($secondOwner);$this->actingAs($secondOwner)->get(route('media.show',[$asset,'original']))->assertForbidden();}
+ public function test_expired_cloudfront_url_is_never_signed():void{$this->expectException(RuntimeException::class);app(CloudFrontUrlSigner::class)->sign('media/originals/object.jpg',now()->subSecond());}
+ public function test_storage_abstraction_rejects_path_traversal():void{$this->expectException(RuntimeException::class);app(ProtectedMediaStorage::class)->put('../escape.jpg','x','image/jpeg');}
+ private function asset(Group $group):MediaAsset{$photo=Photo::create(['group_id'=>$group->id,'uploader_id'=>$group->creator_id,'filename'=>'private.jpg','original_filename'=>'private.jpg','path'=>'private','thumbnail_path'=>'private','mime_type'=>'image/jpeg']);$key='media/optimized/groups/'.$group->id.'/'.uniqid().'.jpg';Storage::disk('private_local')->put($key,'private-bytes');$asset=MediaAsset::create(['uuid'=>(string)\Illuminate\Support\Str::uuid(),'photo_id'=>$photo->id,'group_id'=>$group->id,'owner_id'=>$group->creator_id,'uploader_id'=>$group->creator_id,'storage_disk'=>'private_local','original_object_key'=>$key,'original_filename'=>'private.jpg','mime_type'=>'image/jpeg','size_bytes'=>13,'checksum_sha256'=>hash('sha256','private-bytes')]);foreach(['original','optimized'] as $type)MediaVariant::create(['media_asset_id'=>$asset->id,'variant_type'=>$type,'storage_disk'=>'private_local','object_key'=>$key.'-'.$type,'mime_type'=>'image/jpeg','size_bytes'=>13,'checksum_sha256'=>hash('sha256','private-bytes'),'state'=>'ready']);foreach($asset->variants as $variant)Storage::disk('private_local')->put($variant->object_key,'private-bytes');return $asset;}
+}

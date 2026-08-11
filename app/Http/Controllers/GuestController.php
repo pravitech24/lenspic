@@ -78,6 +78,8 @@ class GuestController extends Controller
             ->values()
             ->take((int) config('services.face_recognition.result_limit', 3));
 
+        $request->session()->put("guest_face_matches.".$group->id, $matchedPhotos->pluck("id")->all());
+
         return view('guest.results', [
             'group' => $group,
             'photos' => $matchedPhotos,

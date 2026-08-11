@@ -10,7 +10,7 @@ use Throwable;
 
 class ImageOptimizationService
 {
-    public function optimizeAndStore(UploadedFile $file, string $directory, ?string $filename = null): array
+    public function optimizeAndStore(UploadedFile $file, string $directory, ?string $filename = null, string $disk = 'public'): array
     {
         $filename ??= Str::uuid() . '.' . strtolower($file->getClientOriginalExtension());
         $tmpPath = $this->createTemporaryPath($filename);
@@ -43,7 +43,7 @@ class ImageOptimizationService
             $optimizedPath = $this->saveOptimizedImage($image, $tmpPath, $outputMime);
             imagedestroy($image);
 
-            $storedPath = Storage::disk('public')->putFileAs($directory, new UploadedFile($optimizedPath, $this->changeExtension($filename, $outputMime), $outputMime, null, true), $this->changeExtension($filename, $outputMime));
+            $storedPath = Storage::disk($disk)->putFileAs($directory, new UploadedFile($optimizedPath, $this->changeExtension($filename, $outputMime), $outputMime, null, true), $this->changeExtension($filename, $outputMime));
             @unlink($optimizedPath);
 
             if ($storedPath === false) {
@@ -52,19 +52,19 @@ class ImageOptimizationService
 
             return [
                 'path' => $storedPath,
-                'size' => Storage::disk('public')->size($storedPath),
+                'size' => Storage::disk($disk)->size($storedPath),
             ];
         } catch (Throwable $exception) {
             report($exception);
 
-            $storedPath = Storage::disk('public')->putFileAs($directory, $file, $filename);
+            $storedPath = Storage::disk($disk)->putFileAs($directory, $file, $filename);
             if ($storedPath === false) {
                 throw new RuntimeException('The image could not be stored.');
             }
 
             return [
                 'path' => $storedPath,
-                'size' => Storage::disk('public')->size($storedPath),
+                'size' => Storage::disk($disk)->size($storedPath),
             ];
         }
     }

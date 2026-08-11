@@ -20,9 +20,10 @@ class Photo extends Model
     public function uploader() { return $this->belongsTo(User::class, 'uploader_id'); }
     public function likes()    { return $this->belongsToMany(User::class, 'photo_likes')->withTimestamps(); }
     public function comments() { return $this->hasMany(Comment::class); }
+    public function mediaAsset() { return $this->hasOne(MediaAsset::class); }
 
-    public function getUrlAttribute()          { return asset('storage/' . $this->path); }
-    public function getThumbnailUrlAttribute() { return $this->thumbnail_path ? asset('storage/' . $this->thumbnail_path) : $this->url; }
+    public function getUrlAttribute() { $asset=$this->mediaAsset; return $asset ? route("media.show",[$asset,"optimized"]) : asset("storage/".$this->path); }
+    public function getThumbnailUrlAttribute() { $asset=$this->mediaAsset; return $asset ? route("media.show",[$asset,"thumbnail"]) : ($this->thumbnail_path ? asset("storage/".$this->thumbnail_path) : $this->url); }
     public function getLikesCountAttribute()   { return $this->likes()->count(); }
 
     public function isLikedBy(?User $user): bool

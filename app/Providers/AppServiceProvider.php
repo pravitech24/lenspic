@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Contracts\OtpSender;
+use App\Contracts\ProtectedMediaStorage;
+use App\Services\Media\LaravelProtectedMediaStorage;
 use App\Services\LogOtpSender;
 use App\Services\SmsOtpSender;
 use App\Services\WhatsAppOtpSender;
@@ -13,6 +15,7 @@ class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
+        $this->app->singleton(ProtectedMediaStorage::class, LaravelProtectedMediaStorage::class);
         $this->app->bind(OtpSender::class, function ($app) {
             if ($app['config']->get('otp.test_mode') && $app->environment('local', 'testing')) {
                 return $app->make(LogOtpSender::class);

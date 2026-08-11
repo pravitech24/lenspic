@@ -14,9 +14,13 @@ use App\Http\Controllers\OnboardingController;
 use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GroupAccessInviteController;
 use App\Http\Controllers\PublicGroupJoinController;
+use App\Http\Controllers\MediaDeliveryController;
 
 // Landing
 Route::get('/', fn() => view('welcome'))->name('home');
+
+// Authorized private media delivery (supports authenticated and explicit anonymous access)
+Route::get("/media/{mediaAsset:uuid}/{variant}",[MediaDeliveryController::class,"show"])->middleware("throttle:120,1")->name("media.show");
 
 // Guest share link (no auth needed)
 Route::get('/g/{group:share_token}', [GuestController::class, 'viewGroup'])->name('guest.group');

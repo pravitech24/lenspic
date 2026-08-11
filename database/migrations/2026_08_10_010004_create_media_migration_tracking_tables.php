@@ -1,0 +1,8 @@
+<?php
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+return new class extends Migration {
+ public function up(): void { Schema::create('media_migration_batches',function(Blueprint $table){$table->id();$table->uuid('uuid')->unique();$table->string('source_disk',40);$table->string('destination_disk',40);$table->string('status',30)->default('planned');$table->unsignedInteger('batch_size')->default(100);$table->unsignedBigInteger('total_items')->default(0);$table->unsignedBigInteger('succeeded_items')->default(0);$table->unsignedBigInteger('failed_items')->default(0);$table->unsignedBigInteger('total_bytes')->default(0);$table->json('manifest')->nullable();$table->timestamp('started_at')->nullable();$table->timestamp('completed_at')->nullable();$table->timestamp('rolled_back_at')->nullable();$table->timestamps();});Schema::create('media_migration_items',function(Blueprint $table){$table->id();$table->foreignId('media_migration_batch_id')->constrained()->cascadeOnDelete();$table->foreignId('photo_id')->constrained()->cascadeOnDelete();$table->string('source_path',1024);$table->string('destination_key',1024);$table->unsignedBigInteger('source_size')->nullable();$table->char('source_checksum',64)->nullable();$table->unsignedBigInteger('destination_size')->nullable();$table->char('destination_checksum',64)->nullable();$table->string('status',30)->default('pending');$table->text('error')->nullable();$table->timestamps();$table->unique(['media_migration_batch_id','photo_id'],'media_migration_batch_photo_unique');}); }
+ public function down(): void { Schema::dropIfExists('media_migration_items');Schema::dropIfExists('media_migration_batches'); }
+};

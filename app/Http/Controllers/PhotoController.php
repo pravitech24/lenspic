@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Group;
 use App\Models\Photo;
 use App\Services\ImageOptimizationService;
+use App\Services\Media\PrivateMediaIngestor;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Auth;
@@ -20,7 +21,7 @@ class PhotoController extends Controller
         return app(GroupController::class)->show($group);
     }
 
-    public function store(Request $request, Group $group, ImageOptimizationService $imageOptimizationService)
+    public function store(Request $request, Group $group, ImageOptimizationService $imageOptimizationService, PrivateMediaIngestor $mediaIngestor)
     {
         if (Auth::guest()) {
             if ($request->wantsJson()) {
@@ -76,7 +77,7 @@ class PhotoController extends Controller
             }
 
             try {
-                $this->storePhoto($file, $group, $imageOptimizationService);
+                $mediaIngestor->ingest($file, $group, $user);
                 $uploaded++;
             } catch (\Throwable $exception) {
                 report($exception);
@@ -183,12 +184,12 @@ class PhotoController extends Controller
         return view('photos.show', compact('group', 'photo', 'isAdmin', 'isLiked'));
     }
 
-    public function destroy(Group $group, Photo $photo)
+    public function destroy(Group $group, Photo $photo, \App\Contracts\ProtectedMediaStorage $mediaStorage)
     {
         abort_unless($photo->group_id === $group->id, 404);
         $user = Auth::user();
         \Illuminate\Support\Facades\Gate::authorize('delete', $photo);
-        Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));
+        if ($asset = $photo->mediaAsset) { foreach ($asset->variants as $variant) { $mediaStorage->delete($variant->object_key); } $asset->delete(); } else { Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path])); }
         $photo->delete();
         if (request()->wantsJson()) return response()->json(['deleted' => true]);
         return back()->with('success', 'Photo deleted.');
@@ -212,6 +213,7 @@ class PhotoController extends Controller
     {
         $this->requirePhotoAccess($group,$photo);
         $photo->incrementDownloads();
+        if ($asset = $photo->mediaAsset) return redirect()->route('media.show', [$asset, 'original', 'download' => 1]);
         $path = Storage::disk('public')->path($photo->path);
         $watermark = $this->resolveWatermarkConfig($group);
 
