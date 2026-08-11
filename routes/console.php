@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 use Symfony\Component\Process\Process;
 
 Artisan::command('inspire', function () {
@@ -36,3 +37,8 @@ Artisan::command('face-api:start', function () {
 
     return $process->isSuccessful() ? self::SUCCESS : self::FAILURE;
 })->purpose('Start the FastAPI face recognition service locally');
+
+Schedule::job(new \App\Jobs\PruneExpiredMediaExports)->hourly()->withoutOverlapping();
+Schedule::job(new \App\Jobs\ReconcileStorageLedger)->dailyAt('02:30')->withoutOverlapping();
+Schedule::command('queue:prune-failed --hours=168')->daily();
+Schedule::command('horizon:snapshot')->everyFiveMinutes();

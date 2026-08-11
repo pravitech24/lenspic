@@ -15,6 +15,9 @@ use App\Http\Controllers\InvitationController;
 use App\Http\Controllers\GroupAccessInviteController;
 use App\Http\Controllers\PublicGroupJoinController;
 use App\Http\Controllers\MediaDeliveryController;
+use App\Http\Controllers\QueuedUploadController;
+use App\Http\Controllers\ProcessingController;
+use App\Http\Controllers\MediaExportController;
 
 // Landing
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -101,7 +104,14 @@ Route::middleware('auth')->group(function () {
     Route::delete('/groups/{group}/folders/{folder}',  [FolderController::class, 'destroy'])->name('folders.destroy');
     Route::post('/groups/{group}/folders/{folder}/transfer', [FolderController::class, 'transferPhotos'])->name('folders.transfer');
     Route::post('/groups/{group}/folders/{folder}/cover', [FolderController::class, 'setCoverPhoto'])->name('folders.cover');
-    Route::post('/groups/{group}/photos',             [PhotoController::class, 'store'])->name('photos.store');
+    Route::post('/groups/{group}/photos',             [QueuedUploadController::class, 'store'])->name('photos.store');
+    Route::get('/processing/batches/{batch:uuid}', [ProcessingController::class, 'show'])->name('processing.show');
+    Route::post('/processing/batches/{batch:uuid}/cancel', [ProcessingController::class, 'cancel'])->name('processing.cancel');
+    Route::post('/processing/batches/{batch:uuid}/retry', [ProcessingController::class, 'retry'])->name('processing.retry');
+    Route::post('/groups/{group}/exports', [MediaExportController::class, 'store'])->name('exports.store');
+    Route::get('/exports/{export:uuid}', [MediaExportController::class, 'show'])->name('exports.show');
+    Route::post('/exports/{export:uuid}/cancel', [MediaExportController::class, 'cancel'])->name('exports.cancel');
+    Route::get('/exports/{export:uuid}/download', [MediaExportController::class, 'download'])->name('exports.download');
     Route::get('/groups/{group}/photos/{photo}',      [PhotoController::class, 'show'])->name('photos.show');
     Route::post('/groups/{group}/photos/{photo}/folder', [PhotoController::class, 'assignToFolder'])->name('photos.folder');
     Route::post('/groups/{group}/photos/bulk-folder', [PhotoController::class, 'bulkAssignFolder'])->name('photos.bulk-folder');

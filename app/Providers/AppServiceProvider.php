@@ -16,6 +16,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(ProtectedMediaStorage::class, LaravelProtectedMediaStorage::class);
+        $this->app->singleton(\Illuminate\Contracts\Redis\Factory::class, function ($app) { $config = $app['config']->get('database.redis', []); $client = \Illuminate\Support\Arr::pull($config, 'client', 'predis'); return new \Illuminate\Redis\RedisManager($app, $client, $config); });
         $this->app->bind(OtpSender::class, function ($app) {
             if ($app['config']->get('otp.test_mode') && $app->environment('local', 'testing')) {
                 return $app->make(LogOtpSender::class);

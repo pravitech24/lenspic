@@ -1,0 +1,3 @@
+<?php
+namespace App\Jobs;use App\Models\{StorageLedgerEntry,User};use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Foundation\Bus\Dispatchable;use Illuminate\Queue\{InteractsWithQueue,SerializesModels};
+class ReconcileStorageLedger implements ShouldQueue {use Dispatchable,InteractsWithQueue,Queueable,SerializesModels;public function __construct(public ?int $ownerId=null){$this->onQueue('maintenance');}public function handle():void{User::when($this->ownerId,fn($q)=>$q->whereKey($this->ownerId))->eachById(function(User$u){$u->forceFill(['storage_used'=>max(0,(int)StorageLedgerEntry::where('owner_id',$u->id)->sum('byte_delta'))])->save();});}}

@@ -1,0 +1,3 @@
+<?php
+namespace App\Jobs;use App\Contracts\ProtectedMediaStorage;use App\Models\MediaExport;use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Foundation\Bus\Dispatchable;use Illuminate\Queue\{InteractsWithQueue,SerializesModels};
+class PruneExpiredMediaExports implements ShouldQueue {use Dispatchable,InteractsWithQueue,Queueable,SerializesModels;public function __construct(){$this->onQueue('maintenance');}public function handle(ProtectedMediaStorage$storage):void{MediaExport::where('expires_at','<',now())->whereNotNull('object_key')->eachById(function(MediaExport$e)use($storage){if($storage->exists($e->object_key))$storage->delete($e->object_key);$e->update(['state'=>'cancelled','object_key'=>null,'size_bytes'=>null]);});}}
