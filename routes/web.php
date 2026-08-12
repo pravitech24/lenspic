@@ -33,6 +33,7 @@ Route::get('/g/{group:share_token}', [GuestController::class, 'viewGroup'])->nam
 Route::post('/g/{group:share_token}/selfie', [GuestController::class, 'selfieMatch'])->name('guest.selfie');
 Route::get('/invite/{code}', [GuestController::class, 'invite'])->name('invite.show');
 Route::get('/join/{token}', [InvitationController::class, 'show'])->name('invitations.show');
+Route::post('/join/{token}/decline', [InvitationController::class, 'decline'])->name('invitations.decline');
 Route::get('/join-group', [PublicGroupJoinController::class,'show'])->name('groups.join-code');
 Route::post('/api/groups/validate-code', [PublicGroupJoinController::class,'validateCode'])->middleware('throttle:8,1')->name('groups.validate-code');
 
@@ -129,11 +130,13 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/selfie',   [FaceController::class, 'uploadSelfie'])->name('face.selfie');
     Route::post('/groups/{group}/recognize',[FaceController::class, 'recognize'])->name('face.recognize');
     Route::post('/groups/{group}/biometric-consents', [BiometricController::class, 'consent'])->name('biometric.consent');
+    Route::get('/groups/{group}/discover', [LensPicUiController::class, 'biometric'])->name('biometric.page');
     Route::post('/groups/{group}/face-searches', [BiometricController::class, 'search'])->name('biometric.search');
     Route::get('/face-searches/{s:uuid}', [BiometricController::class, 'show'])->name('biometric.show');
     Route::post('/face-searches/{s:uuid}/cancel', [BiometricController::class, 'cancel'])->name('biometric.cancel');
     Route::delete('/biometric-consents/{c:uuid}', [BiometricController::class, 'withdraw'])->name('biometric.withdraw');
     Route::get('/face-searches/{s:uuid}/my-photos', [BiometricComplianceController::class, 'myPhotos'])->name('biometric.my-photos');
+    Route::get('/face-searches/{s:uuid}/results', [LensPicUiController::class, 'myPhotos'])->name('biometric.results-page');
     Route::post('/face-matches/{m}/reject', [BiometricComplianceController::class, 'reject'])->name('biometric.reject');
     Route::post('/face-matches/{m}/review', [BiometricComplianceController::class, 'review'])->name('biometric.review');
     Route::post('/biometric-deletion-requests', [BiometricComplianceController::class, 'deletion'])->name('biometric.deletion');

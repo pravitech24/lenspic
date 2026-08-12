@@ -29,6 +29,7 @@ class AuthController extends Controller
         if (!Auth::attempt($request->only('email','password'), $request->boolean('remember'))) throw ValidationException::withMessages(['email'=>'Invalid credentials.']);
         $request->session()->regenerate();
         if($request->session()->has('validated_group_invitation'))return redirect()->route('groups.join.complete');
+        if($request->session()->has('pending_invitation'))return redirect()->route('invitations.show',$request->session()->get('pending_invitation'));
         return redirect()->intended(route('dashboard'));
     }
     public function register(Request $request) { return $this->sendOtp($request, app(OtpSender::class), app(EmailOtpSender::class)); }

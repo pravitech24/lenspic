@@ -9,6 +9,7 @@ use Tests\TestCase;
 
 class GroupAccessInviteTest extends TestCase {
     use RefreshDatabase;
+    protected function setUp(): void { parent::setUp(); $this->withoutMiddleware(\Illuminate\Routing\Middleware\ThrottleRequests::class); }
     private function user(array $extra=[]): User { return User::create(array_merge(['name'=>'User','email'=>uniqid().'@example.com','password'=>bcrypt('password'),'onboarding_step'=>'completed','onboarding_completed_at'=>now(),'plan'=>'free'],$extra)); }
     private function group(User $owner): Group { return Group::create(['name'=>'Wedding','creator_id'=>$owner->id,'privacy'=>'link_only','face_recognition_enabled'=>true]); }
     public function test_creation_generates_distinct_allowed_codes(): void {
@@ -34,16 +35,16 @@ class GroupAccessInviteTest extends TestCase {
     }
     public function test_partial_join_and_full_upgrade_never_duplicate_membership(): void {
         $owner=$this->user();$member=$this->user();$group=$this->group($owner);$partial=GroupAccessInvite::makeFor($group,'partial_access',$owner->id);$full=GroupAccessInvite::makeFor($group,'full_access',$owner->id);
-        $this->actingAs($member)->post('/join/'.$partial->invitation_token)->assertRedirect('/groups/'.$group->id.'/selfie');
-        $this->actingAs($member)->post('/join/'.$full->invitation_token)->assertRedirect('/groups/'.$group->id);
+        $this->actingAs($member)->get('/join/'.$partial->invitation_token)->assertOk();$this->post('/join/'.$partial->invitation_token)->assertRedirect('/groups/'.$group->id.'/discover');
+        $this->get('/join/'.$full->invitation_token)->assertOk();$this->post('/join/'.$full->invitation_token)->assertRedirect('/groups/'.$group->id);
         $this->assertSame(1,$group->members()->where('user_id',$member->id)->count());$this->assertSame('full_access',$group->membershipFor($member)->pivot->access_type);
-        $this->actingAs($member)->post('/join/'.$partial->invitation_token);$this->assertSame('full_access',$group->membershipFor($member)->pivot->access_type);
+        $this->actingAs($member)->get('/join/'.$partial->invitation_token);$this->post('/join/'.$partial->invitation_token);$this->assertSame('full_access',$group->membershipFor($member)->pivot->access_type);
     }
     public function test_revoked_expired_and_exhausted_invites_fail(): void {
         $owner=$this->user();$member=$this->user();$group=$this->group($owner);$invite=GroupAccessInvite::makeFor($group,'partial_access',$owner->id);
-        $invite->update(['is_active'=>false,'revoked_at'=>now()]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertNotFound();
-        $invite->update(['is_active'=>true,'revoked_at'=>null,'expires_at'=>now()->subMinute()]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertNotFound();
-        $invite->update(['expires_at'=>null,'max_uses'=>1,'used_count'=>1]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertNotFound();
+        $invite->update(['is_active'=>false,'revoked_at'=>now()]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertOk()->assertSee('revoked');
+        $invite->update(['is_active'=>true,'revoked_at'=>null,'expires_at'=>now()->subMinute()]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertOk()->assertSee('expired');
+        $invite->update(['expires_at'=>null,'max_uses'=>1,'used_count'=>1]);$this->actingAs($member)->get('/join/'.$invite->invitation_token)->assertOk()->assertSee('unavailable');
     }
     public function test_partial_cannot_browse_gallery_but_full_cannot_manage_settings(): void {
         $owner=$this->user();$partial=$this->user();$full=$this->user();$group=$this->group($owner);
