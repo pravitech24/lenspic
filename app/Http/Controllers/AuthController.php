@@ -11,11 +11,12 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use RuntimeException;
+use Inertia\Inertia;
 
 class AuthController extends Controller
 {
-    public function showLogin() { return view('auth.login'); }
-    public function showRegister() { return view('auth.mobile', ['defaultCountryCode'=>config('otp.default_country_code')]); }
+    public function showLogin() { return Inertia::render('Auth/Login'); }
+    public function showRegister() { return Inertia::render('Auth/Register', ['defaultCountryCode'=>config('otp.default_country_code')]); }
     public function showOtp(Request $request) {
         $channel=$request->session()->get('otp.channel','mobile');
         $destination=$request->session()->get('otp.destination',$request->session()->get('otp.mobile_e164'));

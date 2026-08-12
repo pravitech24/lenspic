@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Inertia\Inertia;
 
 class OnboardingController extends Controller
 {
@@ -19,7 +20,7 @@ class OnboardingController extends Controller
             default=>redirect()->route('onboarding.role'),
         };
     }
-    public function role(Request $request) { return view('auth.signup-role',['selectedRole'=>$request->user()->account_type]); }
+    public function role(Request $request) { return Inertia::render('Onboarding',['step'=>'role','user'=>$request->user()]); }
     public function storeRole(Request $request) {
         $data=$request->validate(['role'=>['required',Rule::in(['user','photographer'])]]);
         $step=$data['role']==='photographer'?'selfie_pending':'user_profile_pending';
@@ -42,7 +43,7 @@ class OnboardingController extends Controller
     }
     public function profile(Request $request) {
         abort_if(!in_array($request->user()->onboarding_step,['user_profile_pending','photographer_profile_pending']),403);
-        return view('auth.onboarding-profile',['user'=>$request->user()]);
+        return Inertia::render('Onboarding',['step'=>'profile','user'=>$request->user()]);
     }
     public function storeProfile(Request $request) {
         $u=$request->user();

@@ -1,0 +1,1 @@
+export default{content:['./resources/**/*.blade.php','./resources/**/*.vue','./resources/**/*.js'],theme:{extend:{colors:{ink:'#111322',indigo:'#4f46e5',coral:'#ef6f61',gold:'#d5a940',canvas:'#f5f5f7'},fontFamily:{sans:['Inter','ui-sans-serif','system-ui'],display:['Manrope','Inter','sans-serif']}}},plugins:[]};
