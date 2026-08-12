@@ -19,6 +19,8 @@ use App\Http\Controllers\QueuedUploadController;
 use App\Http\Controllers\ProcessingController;
 use App\Http\Controllers\MediaExportController;
 use App\Http\Controllers\BiometricController;
+use App\Http\Controllers\BiometricComplianceController;
+use App\Http\Controllers\LensPicUiController;
 
 // Landing
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -63,7 +65,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/api/groups/join', [PublicGroupJoinController::class,'join'])->middleware('throttle:10,1')->name('groups.join-api');
     Route::get('/join-group/success', [PublicGroupJoinController::class,'success'])->name('groups.join.success');
 
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/dashboard', [LensPicUiController::class, 'dashboard'])->name('dashboard');
 
     // Profile
     Route::get('/profile',         [ProfileController::class, 'show'])->name('profile');
@@ -71,10 +73,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/profile/photo',  [ProfileController::class, 'updatePhoto'])->name('profile.photo');
 
     // Groups
-    Route::get('/groups',                  [GroupController::class, 'index'])->name('groups.index');
-    Route::get('/groups/create',           [GroupController::class, 'create'])->name('groups.create');
+    Route::get('/groups',                  [LensPicUiController::class, 'events'])->name('groups.index');
+    Route::get('/groups/create',           [LensPicUiController::class, 'create'])->name('groups.create');
     Route::post('/groups',                 [GroupController::class, 'store'])->name('groups.store');
-    Route::get('/groups/{group}',          [GroupController::class, 'show'])->name('groups.show');
+    Route::get('/groups/{group}',          [LensPicUiController::class, 'show'])->name('groups.show');
     Route::get('/groups/{group}/settings', [GroupController::class, 'settings'])->name('groups.settings');
     Route::get('/groups/{group}/edit',     [GroupController::class, 'edit'])->name('groups.edit');
     Route::put('/groups/{group}',          [GroupController::class, 'update'])->name('groups.update');
@@ -129,7 +131,15 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/biometric-consents', [BiometricController::class, 'consent'])->name('biometric.consent');
     Route::post('/groups/{group}/face-searches', [BiometricController::class, 'search'])->name('biometric.search');
     Route::get('/face-searches/{s:uuid}', [BiometricController::class, 'show'])->name('biometric.show');
+    Route::post('/face-searches/{s:uuid}/cancel', [BiometricController::class, 'cancel'])->name('biometric.cancel');
     Route::delete('/biometric-consents/{c:uuid}', [BiometricController::class, 'withdraw'])->name('biometric.withdraw');
+    Route::get('/face-searches/{s:uuid}/my-photos', [BiometricComplianceController::class, 'myPhotos'])->name('biometric.my-photos');
+    Route::post('/face-matches/{m}/reject', [BiometricComplianceController::class, 'reject'])->name('biometric.reject');
+    Route::post('/face-matches/{m}/review', [BiometricComplianceController::class, 'review'])->name('biometric.review');
+    Route::post('/biometric-deletion-requests', [BiometricComplianceController::class, 'deletion'])->name('biometric.deletion');
+    Route::get('/biometric-deletion-requests/{d:uuid}', [BiometricComplianceController::class, 'deletionStatus'])->name('biometric.deletion-status');
+    Route::post('/groups/{g}/face-index-runs', [BiometricComplianceController::class, 'startIndex'])->name('biometric.index-start');
+    Route::get('/face-index-runs/{run:uuid}', [BiometricComplianceController::class, 'indexStatus'])->name('biometric.index-status');
 });
 
 // Super Admin Routes
