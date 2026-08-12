@@ -1,0 +1,2 @@
+<?php
+namespace App\Models;use Illuminate\Database\Eloquent\Model;class FaceSearchSubject extends Model{protected$fillable=['uuid','biometric_consent_id','group_id','user_id','storage_disk','object_key','checksum_sha256','state','error','expires_at'];protected$casts=['expires_at'=>'datetime'];public function consent(){return$this->belongsTo(BiometricConsent::class,'biometric_consent_id');}public function results(){return$this->hasMany(FaceMatchResult::class);}}

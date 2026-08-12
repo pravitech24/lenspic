@@ -18,6 +18,7 @@ use App\Http\Controllers\MediaDeliveryController;
 use App\Http\Controllers\QueuedUploadController;
 use App\Http\Controllers\ProcessingController;
 use App\Http\Controllers\MediaExportController;
+use App\Http\Controllers\BiometricController;
 
 // Landing
 Route::get('/', fn() => view('welcome'))->name('home');
@@ -125,6 +126,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/groups/{group}/selfie',    [FaceController::class, 'showSelfie'])->name('face.show');
     Route::post('/groups/{group}/selfie',   [FaceController::class, 'uploadSelfie'])->name('face.selfie');
     Route::post('/groups/{group}/recognize',[FaceController::class, 'recognize'])->name('face.recognize');
+    Route::post('/groups/{group}/biometric-consents', [BiometricController::class, 'consent'])->name('biometric.consent');
+    Route::post('/groups/{group}/face-searches', [BiometricController::class, 'search'])->name('biometric.search');
+    Route::get('/face-searches/{s:uuid}', [BiometricController::class, 'show'])->name('biometric.show');
+    Route::delete('/biometric-consents/{c:uuid}', [BiometricController::class, 'withdraw'])->name('biometric.withdraw');
 });
 
 // Super Admin Routes

@@ -1,0 +1,3 @@
+<?php
+namespace App\Jobs;use App\Models\{FaceMatchResult,FaceSearchSubject};use App\Services\Face\FaceRecognitionManager;use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Foundation\Bus\Dispatchable;use Illuminate\Queue\{InteractsWithQueue,SerializesModels};
+class PruneBiometricData implements ShouldQueue{use Dispatchable,InteractsWithQueue,Queueable,SerializesModels;public function __construct(){$this->onQueue('maintenance');}public function handle(FaceRecognitionManager$m):void{FaceSearchSubject::where('expires_at','<',now())->eachById(fn($s)=>$m->purgeSubject($s));FaceMatchResult::whereNotNull('expires_at')->where('expires_at','<',now())->delete();}}

@@ -1,0 +1,3 @@
+<?php
+namespace App\Jobs;use App\Models\BiometricConsent;use App\Services\Face\FaceRecognitionManager;use Illuminate\Bus\Queueable;use Illuminate\Contracts\Queue\ShouldQueue;use Illuminate\Foundation\Bus\Dispatchable;use Illuminate\Queue\{InteractsWithQueue,SerializesModels};
+class WithdrawBiometricConsent implements ShouldQueue{use Dispatchable,InteractsWithQueue,Queueable,SerializesModels;public function __construct(public int$consentId){$this->onQueue('maintenance');}public function handle(FaceRecognitionManager$m):void{$c=BiometricConsent::with('subjects')->findOrFail($this->consentId);foreach($c->subjects as$s)$m->purgeSubject($s);}}

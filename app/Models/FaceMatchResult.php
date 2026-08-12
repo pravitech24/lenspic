@@ -1,0 +1,2 @@
+<?php
+namespace App\Models;use Illuminate\Database\Eloquent\Model;class FaceMatchResult extends Model{protected$fillable=['face_search_subject_id','media_asset_id','similarity','review_state','expires_at'];protected$casts=['expires_at'=>'datetime'];public function asset(){return$this->belongsTo(MediaAsset::class,'media_asset_id');}}

@@ -39,6 +39,7 @@ Artisan::command('face-api:start', function () {
 })->purpose('Start the FastAPI face recognition service locally');
 
 Schedule::job(new \App\Jobs\PruneExpiredMediaExports)->hourly()->withoutOverlapping();
+Schedule::job(new \App\Jobs\PruneBiometricData)->hourly()->withoutOverlapping();
 Schedule::job(new \App\Jobs\ReconcileStorageLedger)->dailyAt('02:30')->withoutOverlapping();
 Schedule::command('queue:prune-failed --hours=168')->daily();
 Schedule::command('horizon:snapshot')->everyFiveMinutes();

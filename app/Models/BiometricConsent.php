@@ -1,0 +1,2 @@
+<?php
+namespace App\Models;use Illuminate\Database\Eloquent\Model;class BiometricConsent extends Model{protected$fillable=['uuid','group_id','user_id','guest_session_hash','purpose','privacy_notice_version','state','granted_at','withdrawn_at','ip_hash','user_agent_hash'];protected$casts=['granted_at'=>'datetime','withdrawn_at'=>'datetime'];public function subjects(){return$this->hasMany(FaceSearchSubject::class);}public function group(){return$this->belongsTo(Group::class);}}
