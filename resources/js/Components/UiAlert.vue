@@ -1,0 +1,1 @@
+<script setup>defineProps({tone:{type:String,default:'info'},title:String})</script><template><div :class="`lp-alert-${tone}`" role="status"><p v-if="title" class="font-semibold"><slot name="icon"/>{{title}}</p><div :class="title&&'mt-1'"><slot/></div></div></template>
