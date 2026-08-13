@@ -15,7 +15,7 @@
 
 ## Connected Inertia routes using the unified theme
 
-`/login`, `/register`, `/onboarding/account-type`, `/onboarding/profile`, `/dashboard`, `/groups`, `/groups/create`, `/groups/{group}`, `/join/{token}`, `/groups/{group}/discover`, and `/face-searches/{uuid}/results`.
+`/login`, `/register`, `/onboarding/account-type`, `/onboarding/profile`, `/dashboard`, `/groups`, `/groups/create`, `/groups/{group}`, `/groups/{group}/edit`, `/groups/{group}/settings`, `/groups/{group}/members`, `/groups/{group}/operations`, `/groups/{group}/face-reviews`, `/groups/{group}/photos/{photo}`, `/join/{token}`, `/groups/{group}/discover`, and `/face-searches/{uuid}/results`.
 
 ## User-facing routes still using legacy Blade
 
@@ -23,8 +23,8 @@ These views remain because their Inertia replacements are not connected and test
 
 - Public: `/`, `/pricing`, `/join-group`, `/join-group/complete`, `/join-group/success`, `/g/{share_token}`, and legacy guest results.
 - Authentication/onboarding: `/verify-otp`, `/onboarding/selfie`, and `/welcome/start`.
-- Event administration: event edit/settings, participant management, access-invitation management/print, folders, and folder detail.
-- Gallery: full photo index, legacy My Photos, photo viewer, legacy selfie screen, favorites/download interactions.
+- Event administration: access-invitation print and folder management/detail remain legacy. Event edit/settings and participant management now use connected Inertia pages.
+- Gallery: full photo index and legacy My Photos/selfie aliases remain for compatibility; the connected photo viewer, favorites and permission-aware downloads now use Inertia.
 - Account: profile and all settings pages (profile, branding, watermark, team, subscription, portfolio, wallet, transactions).
 - Administration: `/admin/*` and `/super-admin/*`.
 

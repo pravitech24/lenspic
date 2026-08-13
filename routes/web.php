@@ -78,14 +78,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/groups/create',           [LensPicUiController::class, 'create'])->name('groups.create');
     Route::post('/groups',                 [GroupController::class, 'store'])->name('groups.store');
     Route::get('/groups/{group}',          [LensPicUiController::class, 'show'])->name('groups.show');
-    Route::get('/groups/{group}/settings', [GroupController::class, 'settings'])->name('groups.settings');
-    Route::get('/groups/{group}/edit',     [GroupController::class, 'edit'])->name('groups.edit');
+    Route::get('/groups/{group}/operations', [LensPicUiController::class, 'operations'])->name('groups.operations');
+    Route::get('/groups/{group}/face-reviews', [LensPicUiController::class, 'reviews'])->name('groups.face-reviews');
+    Route::get('/groups/{group}/settings', [LensPicUiController::class, 'edit'])->name('groups.settings');
+    Route::get('/groups/{group}/edit',     [LensPicUiController::class, 'edit'])->name('groups.edit');
     Route::put('/groups/{group}',          [GroupController::class, 'update'])->name('groups.update');
     Route::delete('/groups/{group}',       [GroupController::class, 'destroy'])->name('groups.destroy');
     Route::post('/groups/{group}/join',    [GroupController::class, 'join'])->name('groups.join');
     Route::post('/groups/{group}/leave',   [GroupController::class, 'leave'])->name('groups.leave');
     Route::post('/groups/{group}/invite',  [GroupController::class, 'invite'])->name('groups.invite');
-    Route::get('/groups/{group}/members',  [GroupController::class, 'members'])->name('groups.members');
+    Route::get('/groups/{group}/members',  [LensPicUiController::class, 'members'])->name('groups.members');
     Route::delete('/groups/{group}/members/{user}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
     Route::post('/groups/{group}/regenerate-token', [GroupController::class, 'regenerateToken'])->name('groups.regenerate-token');
     Route::post('/groups/{group}/regenerate-code', [GroupController::class, 'regenerateCode'])->name('groups.regenerate-code');
@@ -116,7 +118,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/exports/{export:uuid}', [MediaExportController::class, 'show'])->name('exports.show');
     Route::post('/exports/{export:uuid}/cancel', [MediaExportController::class, 'cancel'])->name('exports.cancel');
     Route::get('/exports/{export:uuid}/download', [MediaExportController::class, 'download'])->name('exports.download');
-    Route::get('/groups/{group}/photos/{photo}',      [PhotoController::class, 'show'])->name('photos.show');
+    Route::get('/groups/{group}/photos/{photo}',      [LensPicUiController::class, 'photo'])->name('photos.show');
     Route::post('/groups/{group}/photos/{photo}/folder', [PhotoController::class, 'assignToFolder'])->name('photos.folder');
     Route::post('/groups/{group}/photos/bulk-folder', [PhotoController::class, 'bulkAssignFolder'])->name('photos.bulk-folder');
     Route::delete('/groups/{group}/photos/{photo}',   [PhotoController::class, 'destroy'])->name('photos.destroy');
