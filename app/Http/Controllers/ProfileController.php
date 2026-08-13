@@ -11,13 +11,7 @@ class ProfileController extends Controller
 {
     public function show()
     {
-        $user  = Auth::user();
-        $stats = [
-            'groups' => $user->createdGroups()->count() + $user->groups()->count(),
-            'photos' => $user->photos()->count(),
-            'likes'  => $user->likes()->count(),
-        ];
-        return view('profile', compact('user', 'stats'));
+        return redirect()->route('settings.profile');
     }
 
     public function update(Request $request)

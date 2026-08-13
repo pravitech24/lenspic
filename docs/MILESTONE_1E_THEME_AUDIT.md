@@ -15,7 +15,7 @@
 
 ## Connected Inertia routes using the unified theme
 
-`/login`, `/register`, `/onboarding/account-type`, `/onboarding/profile`, `/dashboard`, `/groups`, `/groups/create`, `/groups/{group}`, `/groups/{group}/edit`, `/groups/{group}/settings`, `/groups/{group}/members`, `/groups/{group}/operations`, `/groups/{group}/face-reviews`, `/groups/{group}/photos/{photo}`, `/join/{token}`, `/groups/{group}/discover`, and `/face-searches/{uuid}/results`.
+`/login`, `/register`, `/onboarding/account-type`, `/onboarding/profile`, `/dashboard`, `/settings`, `/settings/profile`, `/settings/branding`, `/settings/watermark`, `/settings/team`, `/settings/subscription`, `/groups`, `/groups/create`, `/groups/{group}`, `/groups/{group}/edit`, `/groups/{group}/settings`, `/groups/{group}/members`, `/groups/{group}/operations`, `/groups/{group}/face-reviews`, `/groups/{group}/photos/{photo}`, `/join/{token}`, `/groups/{group}/discover`, and `/face-searches/{uuid}/results`.
 
 ## User-facing routes still using legacy Blade
 
@@ -25,7 +25,7 @@ These views remain because their Inertia replacements are not connected and test
 - Authentication/onboarding: `/verify-otp`, `/onboarding/selfie`, and `/welcome/start`.
 - Event administration: access-invitation print and folder management/detail remain legacy. Event edit/settings and participant management now use connected Inertia pages.
 - Gallery: full photo index and legacy My Photos/selfie aliases remain for compatibility; the connected photo viewer, favorites and permission-aware downloads now use Inertia.
-- Account: profile and all settings pages (profile, branding, watermark, team, subscription, portfolio, wallet, transactions).
+- Account: Profile, branding, watermark, team, subscription and the Settings entry route now use one normal Inertia page. Portfolio, wallet and transaction history remain legacy because those broader financial modules were not part of the connected Milestone 1E scope.
 - Administration: `/admin/*` and `/super-admin/*`.
 
 JSON-only processing, indexing, biometric deletion, export and private-media endpoints do not render a visual theme. Their future Inertia status screens must consume the same shared components.

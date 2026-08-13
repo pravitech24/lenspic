@@ -7,18 +7,38 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
 
 class SettingsController extends Controller
 {
-    public function index()    { return redirect()->route('settings.profile'); }
-    public function profile()  { return view('settings.profile',  ['user' => Auth::user()]); }
-    public function branding() { return view('settings.branding', ['user' => Auth::user()]); }
-    public function watermark(){ return view('settings.watermark',['user' => Auth::user()]); }
-    public function team()     { return view('settings.team',     ['user' => Auth::user()]); }
+    private function page(string $section)
+    {
+        $user = Auth::user();
+
+        return Inertia::render('Settings/Index', [
+            'section' => $section,
+            'user' => [
+                'id' => $user->id, 'name' => $user->name, 'email' => $user->email,
+                'phone' => $user->phone, 'account_type' => $user->account_type,
+                'plan' => $user->plan, 'storage_used' => $user->storage_used,
+                'meta' => $user->meta ?? [],
+            ],
+            'team' => $section === 'team'
+                ? $user->createdGroups()->withCount('members')->get()->map(fn ($group) => [
+                    'id' => $group->id, 'name' => $group->name, 'members_count' => $group->members_count,
+                ])
+                : [],
+        ]);
+    }
+    public function index()    { return $this->page('profile'); }
+    public function profile()  { return $this->page('profile'); }
+    public function branding() { return $this->page('branding'); }
+    public function watermark(){ return $this->page('watermark'); }
+    public function team()     { return $this->page('team'); }
     public function portfolio(){ return view('settings.portfolio',['user' => Auth::user()]); }
     public function wallet()   { return view('settings.wallet',   ['user' => Auth::user()]); }
     public function transactions(){ return view('settings.transactions', ['user' => Auth::user()]); }
-    public function subscription(){ return view('settings.subscription',['user' => Auth::user()]); }
+    public function subscription(){ return $this->page('subscription'); }
 
     public function updateProfile(Request $request, ImageOptimizationService $imageOptimizationService)
     {
