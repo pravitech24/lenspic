@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Models\GroupAccessInvite;
@@ -39,6 +40,7 @@ class GroupController extends Controller
             'location'=>'nullable|string|max:255',
             'access_options'=>['required','array','min:1'],
             'access_options.*'=>['required','in:partial_access,full_access'],
+            'submission_token'=>['nullable','uuid'],
         ]);
 
         $user = Auth::user();
@@ -50,7 +52,7 @@ class GroupController extends Controller
             return back()->with('error', 'You have reached your plan limit for creating groups.');
         }
 
-        $data = $request->except('cover_photo','access_options');
+        $data = $request->except('cover_photo','access_options','submission_token');
         $data['creator_id']               = Auth::id();
         $data['allow_guest_upload']        = $request->boolean('allow_guest_upload');
         $data['face_recognition_enabled']  = $request->boolean('face_recognition_enabled');
@@ -63,9 +65,17 @@ class GroupController extends Controller
         }
 
         abort_unless($user->account_type === 'photographer' || $user->isAdmin(), 403);
-        $group = DB::transaction(function () use ($data,$request) { $group=Group::create($data); $group->members()->attach(Auth::id(), ['role'=>'admin','join_method'=>'creator','membership_status'=>'active','access_type'=>'full_access','approved_at'=>now(),'approved_by'=>Auth::id(),'joined_at'=>now()]); foreach(array_unique($request->input('access_options')) as $type) GroupAccessInvite::makeFor($group,$type,Auth::id()); return $group; });
+        $create = function () use ($data,$request) { return DB::transaction(function () use ($data,$request) { $group=Group::create($data); $group->members()->attach(Auth::id(), ['role'=>'admin','join_method'=>'creator','membership_status'=>'active','access_type'=>'full_access','approved_at'=>now(),'approved_by'=>Auth::id(),'joined_at'=>now()]); foreach(array_unique($request->input('access_options')) as $type) GroupAccessInvite::makeFor($group,$type,Auth::id()); return $group; }); };
+        $token = $request->input('submission_token');
+        if ($token) {
+            $key = 'group-create:'.Auth::id().':'.$token;
+            $group = Cache::lock($key.':lock', 10)->block(5, function () use ($key,$create) {
+                if ($id = Cache::get($key)) return Group::findOrFail($id);
+                $group = $create(); Cache::put($key, $group->id, now()->addMinutes(30)); return $group;
+            });
+        } else $group = $create();
 
-        return redirect()->route('groups.access-invites.index', $group)->with('success', 'Group created! Share an invitation to add participants.');
+        return redirect()->route('groups.show', $group)->with('success', 'Group created. Upload photos or invite participants when ready.');
     }
 
     public function show(Group $group)
@@ -121,6 +131,14 @@ class GroupController extends Controller
             'event_type' => 'sometimes|required|string',
             'event_date' => 'sometimes|nullable|date',
             'privacy'    => 'sometimes|required|in:public,private,link_only',
+            'location'   => 'sometimes|nullable|string|max:255',
+            'is_active'  => 'sometimes|boolean',
+            'membership_status' => 'sometimes|required|in:open,closed',
+            'membership_limit' => 'sometimes|nullable|integer|min:2|max:100000',
+            'anyone_with_link_can_join' => 'sometimes|boolean',
+            'anonymous_access_mode' => 'sometimes|required|in:disabled,face_only,full',
+            'downloads_enabled' => 'sometimes|boolean',
+            'participants_can_edit_identity' => 'sometimes|boolean',
             'cover_photo'=> 'nullable|image|max:102400',
             'allow_guest_upload'       => 'sometimes|boolean',
             'face_recognition_enabled' => 'sometimes|boolean',
@@ -130,7 +148,7 @@ class GroupController extends Controller
 
         unset($data['cover_photo']);
 
-        foreach (['allow_guest_upload', 'face_recognition_enabled', 'watermark_enabled'] as $field) {
+        foreach (['is_active','anyone_with_link_can_join','downloads_enabled','participants_can_edit_identity','allow_guest_upload', 'face_recognition_enabled', 'watermark_enabled'] as $field) {
             if ($request->has($field)) {
                 $data[$field] = $request->boolean($field);
             }

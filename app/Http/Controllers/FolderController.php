@@ -6,6 +6,7 @@ use App\Models\Folder;
 use App\Models\Group;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Inertia\Inertia;
 
 class FolderController extends Controller
 {
@@ -16,7 +17,7 @@ class FolderController extends Controller
         if (!$group->hasFullAccess(Auth::user())) $query->where('highlighted',true);
         $folders = $query->get();
 
-        return view('folders.index', compact('group', 'folders'));
+        return Inertia::render('Groups/Folders', ['group'=>$group->only('id','name'),'canManage'=>$group->isAdmin(Auth::user()),'folders'=>$folders->map(fn($f)=>['id'=>$f->id,'name'=>$f->name,'description'=>$f->description,'color'=>$f->color,'highlighted'=>$f->highlighted,'display_order'=>$f->display_order,'photos_count'=>$f->photos_count])]);
     }
 
     public function show(Group $group, Folder $folder)

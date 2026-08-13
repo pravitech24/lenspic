@@ -52,6 +52,10 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout')->middl
 
 // Authenticated
 Route::middleware('auth')->group(function () {
+    // Compatibility aliases for previously shared Event-facing bookmarks.
+    Route::get('/events', fn () => redirect()->route('groups.index', status: 301))->name('events.index');
+    Route::get('/events/create', fn () => redirect()->route('groups.create', status: 301))->name('events.create');
+    Route::get('/events/{group}', fn (\App\Models\Group $group) => redirect()->route('groups.show', $group, 301))->name('events.show');
 
     Route::get('/onboarding', [OnboardingController::class, 'resume'])->name('onboarding.resume');
     Route::get('/onboarding/account-type', [OnboardingController::class, 'role'])->name('onboarding.role');
@@ -88,6 +92,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/groups/{group}/leave',   [GroupController::class, 'leave'])->name('groups.leave');
     Route::post('/groups/{group}/invite',  [GroupController::class, 'invite'])->name('groups.invite');
     Route::get('/groups/{group}/members',  [LensPicUiController::class, 'members'])->name('groups.members');
+    Route::get('/groups/{group}/favorites', [LensPicUiController::class, 'favorites'])->name('groups.favorites');
     Route::delete('/groups/{group}/members/{user}', [GroupController::class, 'removeMember'])->name('groups.members.remove');
     Route::post('/groups/{group}/regenerate-token', [GroupController::class, 'regenerateToken'])->name('groups.regenerate-token');
     Route::post('/groups/{group}/regenerate-code', [GroupController::class, 'regenerateCode'])->name('groups.regenerate-code');
