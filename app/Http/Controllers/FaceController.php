@@ -15,9 +15,7 @@ class FaceController extends Controller
     {
         abort_unless($group->isMember(auth()->user()),403); if (!$group->face_recognition_enabled) return redirect()->route('groups.index')->withErrors(['face'=>'Face recognition is not enabled for this group.']);
 
-        $member = $group->members()->where('user_id', Auth::id())->first();
-        $selfie = $member?->pivot?->selfie_path;
-        return view('face.selfie', compact('group', 'selfie'));
+        return redirect()->route('biometric.page', $group);
     }
 
     public function uploadSelfie(Request $request, Group $group, ImageOptimizationService $imageOptimizationService)

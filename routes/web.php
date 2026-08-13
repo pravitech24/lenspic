@@ -24,6 +24,7 @@ use App\Http\Controllers\LensPicUiController;
 
 // Landing
 Route::get('/', fn() => view('welcome'))->name('home');
+Route::get('/favicon.ico', fn() => response()->noContent())->name('favicon');
 
 // Authorized private media delivery (supports authenticated and explicit anonymous access)
 Route::get("/media/{mediaAsset:uuid}/{variant}",[MediaDeliveryController::class,"show"])->middleware("throttle:120,1")->name("media.show");
@@ -85,6 +86,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/groups/{group}/operations', [LensPicUiController::class, 'operations'])->name('groups.operations');
     Route::get('/groups/{group}/face-reviews', [LensPicUiController::class, 'reviews'])->name('groups.face-reviews');
     Route::get('/groups/{group}/settings', [LensPicUiController::class, 'edit'])->name('groups.settings');
+    Route::get('/groups/{group}/settings/{section}', [LensPicUiController::class, 'settingsSection'])
+        ->whereIn('section', ['general','participants','privacy','folders','design','downloads','branding','favourites'])
+        ->name('groups.settings.section');
     Route::get('/groups/{group}/edit',     [LensPicUiController::class, 'edit'])->name('groups.edit');
     Route::put('/groups/{group}',          [GroupController::class, 'update'])->name('groups.update');
     Route::delete('/groups/{group}',       [GroupController::class, 'destroy'])->name('groups.destroy');

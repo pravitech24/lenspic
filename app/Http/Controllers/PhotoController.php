@@ -18,7 +18,7 @@ class PhotoController extends Controller
     public function index(Group $group)
     {
         $this->requireFullAccess($group);
-        return app(GroupController::class)->show($group);
+        return app(LensPicUiController::class)->show(request(), $group);
     }
 
     public function store(Request $request, Group $group, ImageOptimizationService $imageOptimizationService, PrivateMediaIngestor $mediaIngestor)
@@ -340,7 +340,7 @@ class PhotoController extends Controller
 
     public function myPhotos(Group $group)
     {
-        abort_unless($group->isMember(Auth::user()),403); return redirect()->route('face.show',$group);
+        abort_unless($group->isMember(Auth::user()),403); return redirect()->route('biometric.page',$group);
     }
 
     public function bulkDownload(Request $request, Group $group)

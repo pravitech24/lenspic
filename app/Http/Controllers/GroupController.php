@@ -80,46 +80,17 @@ class GroupController extends Controller
 
     public function show(Group $group)
     {
-        $this->checkAccess($group);
-        $user = Auth::user();
-        if (!$group->isAdmin($user) && !$group->hasFullAccess($user)) return redirect()->route('face.show',$group);
-        $photos   = $group->photos()->with('uploader', 'likes')->latest()->paginate(30);
-        $folders  = $group->folders()->with('photos')->ordered()->get();
-        $members  = $group->members()->limit(8)->get();
-        $isAdmin  = $group->isAdmin($user);
-        $isMember = $group->isMember($user);
-
-        if ($isAdmin) {
-            foreach ([GroupAccessInvite::PARTIAL, GroupAccessInvite::FULL] as $accessType) {
-                GroupAccessInvite::firstOrCreate(
-                    ['group_id' => $group->id, 'access_type' => $accessType],
-                    [
-                        'access_code' => GroupAccessInvite::generateCode(),
-                        'invitation_token' => \Illuminate\Support\Str::random(48),
-                        'created_by' => $user->id,
-                    ]
-                );
-            }
-        }
-        $accessInvites = $group->accessInvites()->get()->keyBy('access_type');
-        $inviteState = [
-            'viewer' => $this->inviteState($group, $accessInvites->get(GroupAccessInvite::PARTIAL)),
-            'guest' => $this->inviteState($group, $accessInvites->get(GroupAccessInvite::FULL)),
-        ];
-
-        return view('groups.show', compact('group', 'photos', 'folders', 'members', 'isAdmin', 'isMember', 'accessInvites', 'inviteState'));
+        return app(LensPicUiController::class)->show(request(), $group);
     }
 
     public function edit(Group $group)
     {
-        $this->checkAdmin($group);
-        return view('groups.edit', compact('group'));
+        return app(LensPicUiController::class)->edit(request(), $group);
     }
 
     public function settings(Group $group)
     {
-        $this->checkAdmin($group);
-        return view('groups.settings', compact('group'));
+        return app(LensPicUiController::class)->edit(request(), $group);
     }
 
     public function update(Request $request, Group $group, ImageOptimizationService $imageOptimizationService)
@@ -224,10 +195,7 @@ class GroupController extends Controller
 
     public function members(Group $group)
     {
-        $this->checkAccess($group);
-        $members = $group->members()->withPivot('role', 'joined_at')->paginate(20);
-        $isAdmin = $group->isAdmin(Auth::user());
-        return view('groups.members', compact('group', 'members', 'isAdmin'));
+        return app(LensPicUiController::class)->members(request(), $group);
     }
 
     public function removeMember(Group $group, User $user)
