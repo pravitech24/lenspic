@@ -49,9 +49,16 @@ input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
 </head>
 <body>
 <div class="topbar">
-  <a href="/" class="logo"><div class="logo-icon">⚡</div>LensPic</a>
+  <a href="/" class="logo">
+    @if(!empty($branding['logo_url']))
+      <img src="{{ $branding['logo_url'] }}" alt="{{ $branding['business_name'] ?? 'Business' }} logo" style="height:32px;max-width:120px;object-fit:contain">
+    @else
+      <div class="logo-icon">⚡</div>LensPic
+    @endif
+  </a>
   <a href="{{ route('register') }}" class="btn btn-primary" style="font-size:13px;">Create Account</a>
 </div>
+<div style="position:absolute;right:1.5rem;top:84px;z-index:4"><a href="{{ route('guest.flipbook',$group) }}" class="btn btn-primary" style="font-size:13px">Open Digital Flipbook</a></div>
 <div class="hero">
   @if($group->cover_photo)<img src="{{ asset('storage/'.$group->cover_photo) }}">@endif
   <div class="hero-overlay"></div>
@@ -62,6 +69,16 @@ input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
   </div>
 </div>
 <div class="wrap">
+  @if(!empty($branding['phone']) || !empty($branding['email']) || !empty($branding['website']) || !empty($branding['instagram_url']) || !empty($branding['facebook_url']))
+  <aside style="display:flex;gap:.9rem;align-items:center;flex-wrap:wrap;margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;">
+    @if(!empty($branding['business_name']))<strong>{{ $branding['business_name'] }}</strong>@endif
+    @if(!empty($branding['phone']))<a href="tel:{{ preg_replace('/\s+/', '', $branding['phone']) }}">{{ $branding['phone'] }}</a>@endif
+    @if(!empty($branding['email']))<a href="mailto:{{ $branding['email'] }}">{{ $branding['email'] }}</a>@endif
+    @if(!empty($branding['website']))<a href="{{ $branding['website'] }}" target="_blank" rel="noopener">Website</a>@endif
+    @if(!empty($branding['instagram_url']))<a href="{{ $branding['instagram_url'] }}" target="_blank" rel="noopener">Instagram</a>@endif
+    @if(!empty($branding['facebook_url']))<a href="{{ $branding['facebook_url'] }}" target="_blank" rel="noopener">Facebook</a>@endif
+  </aside>
+  @endif
   @if ($errors->any() || session('error'))
   <div style="margin-bottom:1rem;padding:1rem;border-radius:12px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;font-size:14px;">
     {{ session('error') ?: $errors->first() }}
@@ -92,22 +109,9 @@ input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.1);}
     <div class="panel">
       <div style="font-size:2.5rem;margin-bottom:.75rem;">🤖</div>
       <h2 style="font-weight:700;margin-bottom:.5rem;">Find Photos with You</h2>
-      <p style="color:#64748b;font-size:14px;margin-bottom:1.5rem;max-width:400px;margin-left:auto;margin-right:auto;">Upload a selfie and our AI finds all photos you appear in. No account needed.</p>
-      <form action="{{ route('guest.selfie',$group) }}" method="POST" enctype="multipart/form-data">
-        @csrf
-        <div style="max-width:340px;margin:0 auto;">
-          <div class="form-group"><label>Your Name</label><input type="text" name="name" placeholder="Priya Sharma" required></div>
-          <div class="form-group"><label>Phone</label><input type="tel" name="phone" placeholder="+91 9876543210" required></div>
-          <div class="form-group"><label>Your Selfie</label>
-            <div style="border:2px dashed #e2e8f0;border-radius:12px;padding:1.5rem;cursor:pointer;text-align:center;" onclick="document.getElementById('gs').click();" id="sz">
-              <img id="sp" style="display:none;width:90px;height:90px;border-radius:50%;object-fit:cover;margin:0 auto .5rem;">
-              <div id="sph"><div style="font-size:2rem;margin-bottom:.35rem;">📸</div><p style="font-size:13px;color:#64748b;">Tap to take or upload selfie</p></div>
-            </div>
-            <input type="file" name="selfie" id="gs" accept="image/*" capture="user" hidden required onchange="showPrev(this)">
-          </div>
-          <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:.7rem;"><i class="fa-solid fa-wand-magic-sparkles"></i> Find My Photos</button>
-        </div>
-      </form>
+      <p style="color:#64748b;font-size:14px;margin-bottom:1.5rem;">Join this Group with your invitation, then choose Find My Photos to review consent before providing a selfie.</p>
+      <a href="{{ route('biometric.entry', $group) }}" class="btn btn-primary">Find My Photos</a>
+
     </div>
   </div>
 

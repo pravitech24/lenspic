@@ -7,8 +7,11 @@ use App\Models\Group;
 use App\Models\Photo;
 use App\Models\Subscription;
 use App\Models\Report;
+use App\Models\{MediaAsset, RazorpayOrder, SubscriptionPlan, SubscriptionPlanAudit};
+use App\Services\Media\MediaAssetCleanup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 
 class SuperAdminController extends Controller
 {
@@ -22,23 +25,36 @@ class SuperAdminController extends Controller
     {
         $this->checkSuperAdmin();
 
+        $plans = SubscriptionPlan::withCount('features')->get();
         $stats = [
             'total_users' => User::count(),
-            'super_admins' => User::where('role', 'super_admin')->count(),
-            'admins' => User::where('role', 'admin')->count(),
+            'photographers' => User::whereIn('account_type', ['photographer', 'studio'])->count(),
+            'active_photographers' => User::whereIn('account_type', ['photographer', 'studio'])->where('status', 'active')->count(),
             'total_groups' => Group::count(),
-            'total_photos' => Photo::count(),
-            'total_subscriptions' => Subscription::where('status', 'active')->count(),
-            'total_revenue' => Subscription::where('status', 'active')->sum('amount'),
-            'new_users_today' => User::whereDate('created_at', today())->count(),
-            'new_subscriptions_today' => Subscription::whereDate('created_at', today())->count(),
+            'total_media' => MediaAsset::count(),
+            'storage_bytes' => (int) MediaAsset::whereNotIn('state', ['deleted', 'purged'])->sum('size_bytes'),
+            'active_subscriptions' => Subscription::where('status', 'active')->count(),
+            'expiring_subscriptions' => Subscription::where('status', 'active')->whereBetween('expires_at', [now(), now()->addDays(30)])->count(),
+            'monthly_payments' => RazorpayOrder::where('status', 'paid')->where('created_at', '>=', now()->startOfMonth())->count(),
+            'failed_payments' => RazorpayOrder::whereIn('status', ['failed', 'expired'])->count(),
+            'pending_payments' => RazorpayOrder::whereIn('status', ['created', 'pending'])->count(),
+            'failed_jobs' => Schema::hasTable('failed_jobs') ? \DB::table('failed_jobs')->count() : 0,
+            'queue_backlog' => Schema::hasTable('jobs') ? \DB::table('jobs')->count() : 0,
+            'active_public_plans' => $plans->where('is_active', true)->where('is_public', true)->count(),
+            'inactive_plans' => $plans->where('is_active', false)->count(),
+            'configured_prices' => \App\Models\SubscriptionPlanPrice::where('is_active', true)->count(),
+            'plans_missing_prices' => $plans->filter(fn ($plan) => ! $plan->currentPrice('quarterly') || ! $plan->currentPrice('yearly'))->count(),
+            'plans_missing_features' => $plans->where('features_count', 0)->count(),
+            'last_plan_update' => $plans->max('updated_at'),
         ];
 
         $recentUsers = User::latest()->limit(10)->get();
         $recentGroups = Group::with('creator')->withCount('photos', 'members')->latest()->limit(10)->get();
         $activeSubscriptions = Subscription::with('user')->where('status', 'active')->latest()->limit(10)->get();
 
-        return view('super-admin.dashboard', compact('stats', 'recentUsers', 'recentGroups', 'activeSubscriptions'));
+        $recentActivity = SubscriptionPlanAudit::with('actor')->latest()->limit(8)->get();
+
+        return view('super-admin.dashboard', compact('stats', 'recentUsers', 'recentGroups', 'activeSubscriptions', 'recentActivity'));
     }
 
     // --- USERS MANAGEMENT ---
@@ -53,7 +69,13 @@ class SuperAdminController extends Controller
                   ->orWhere('email', 'like', '%' . $request->search . '%');
         }
 
-        if ($request->role) {
+        if ($request->type === 'photographers') {
+            $query->whereIn('account_type', ['photographer', 'studio']);
+        } elseif ($request->type === 'team-members') {
+            $query->whereHas('studioMemberships', fn ($membership) => $membership->where('status', 'active'));
+        } elseif ($request->type === 'group-members') {
+            $query->whereHas('groups', fn ($group) => $group->where('group_members.membership_status', 'active'));
+        } elseif ($request->role) {
             $query->where('role', $request->role);
         }
 
@@ -270,9 +292,14 @@ class SuperAdminController extends Controller
         return view('super-admin.groups.show', compact('group', 'members', 'photos'));
     }
 
-    public function deleteGroup(Group $group)
+    public function deleteGroup(Group $group, MediaAssetCleanup $cleanup)
     {
         $this->checkSuperAdmin();
+
+        $group->load('coverMediaAsset.variants', 'pendingCoverMediaAsset.variants');
+        $covers = collect([$group->coverMediaAsset, $group->pendingCoverMediaAsset])->filter()->unique('id');
+        $group->update(['cover_media_asset_id' => null, 'pending_cover_media_asset_id' => null]);
+        foreach ($covers as $cover) $cleanup->schedule($cover);
 
         foreach ($group->photos as $photo) {
             \Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));

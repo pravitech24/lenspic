@@ -6,6 +6,7 @@ use App\Models\Group;
 use App\Models\Photo;
 use App\Models\User;
 use App\Models\Subscription;
+use App\Services\Media\MediaAssetCleanup;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -85,9 +86,13 @@ class AdminController extends Controller
         return view('admin.groups', compact('groups'));
     }
 
-    public function deleteGroup(Group $group)
+    public function deleteGroup(Group $group, MediaAssetCleanup $cleanup)
     {
         $this->checkAdmin();
+        $group->load('coverMediaAsset.variants', 'pendingCoverMediaAsset.variants');
+        $covers = collect([$group->coverMediaAsset, $group->pendingCoverMediaAsset])->filter()->unique('id');
+        $group->update(['cover_media_asset_id' => null, 'pending_cover_media_asset_id' => null]);
+        foreach ($covers as $cover) $cleanup->schedule($cover);
         foreach ($group->photos as $photo) {
             \Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));
         }

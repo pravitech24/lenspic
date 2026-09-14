@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration;use Illuminate\Database\Schema\Blueprint;use Illuminate\Support\Facades\Schema;
+return new class extends Migration{public function up():void{Schema::table('razorpay_orders',function(Blueprint$t){$t->string('purchase_type',20)->default('subscription')->after('user_id');$t->foreignId('subscription_addon_id')->nullable()->after('subscription_plan_price_id')->constrained()->nullOnDelete();});}public function down():void{Schema::table('razorpay_orders',function(Blueprint$t){$t->dropConstrainedForeignId('subscription_addon_id');$t->dropColumn('purchase_type');});}};

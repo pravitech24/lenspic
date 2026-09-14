@@ -1,0 +1,1 @@
+<section class="marketing-section"><div class="marketing-container max-w-4xl"><div class="section-heading"><span class="eyebrow">Questions</span><h2>Useful details for this workflow</h2></div><div class="faq-group">@foreach($data['faqs'] as $faq)<details class="faq-item"><summary>{{ $faq[0] }}</summary><p>{{ $faq[1] }}</p></details>@endforeach</div></div></section>

@@ -41,12 +41,29 @@ class User extends Authenticatable
     public function likes()  { return $this->belongsToMany(Photo::class, 'photo_likes')->withTimestamps(); }
 
     public function subscriptions() { return $this->hasMany(Subscription::class); }
+    public function subscriptionAddons() { return $this->hasMany(SubscriptionAddon::class); }
     public function photographerProfile() { return $this->hasOne(PhotographerProfile::class); }
+    public function businessBranding() { return $this->hasOne(BusinessBranding::class); }
+    public function studioTeamMembers() { return $this->hasMany(StudioTeamMembership::class, 'studio_owner_id'); }
+    public function studioMemberships() { return $this->hasMany(StudioTeamMembership::class); }
+    public function teamInvitations() { return $this->hasMany(TeamInvitation::class, 'studio_owner_id'); }
+    public function flipbookSetting() { return $this->hasOne(FlipbookSetting::class, 'studio_owner_id'); }
+    public function watermarkSetting() { return $this->hasOne(WatermarkSetting::class, 'studio_owner_id'); }
+    public function portfolio() { return $this->hasOne(Portfolio::class, 'studio_owner_id'); }
+    public function wallet() { return $this->hasOne(Wallet::class, 'studio_owner_id'); }
     public function selfieVerifications() { return $this->hasMany(SelfieVerification::class); }
     public function activeSubscription() { return $this->hasOne(Subscription::class)->where('status', 'active')->latest(); }
 
     public function isSuperAdmin(): bool { return $this->role === 'super_admin'; }
-    public function isAdmin(): bool { return $this->role === 'admin' || $this->role === 'super_admin'; }
+    public function isAdmin(): bool { return $this->is_admin || $this->role === 'admin' || $this->role === 'super_admin'; }
+
+    public function hasGroupCreatorRole(): bool
+    {
+        return in_array($this->account_type, ['photographer', 'studio'], true)
+            || in_array($this->role, ['photographer', 'studio', 'admin', 'super_admin'], true)
+            || $this->is_admin
+            || $this->createdGroups()->exists();
+    }
 
     public function getProfilePhotoUrlAttribute(): string {
         return $this->profile_photo
@@ -82,37 +99,21 @@ class User extends Authenticatable
             };
         }
 
-        // Face recognition is only available on paid plans.
-        $paidPlans = ['basic','standard','essential','premium','pro','business','enterprise'];
-
-        return match ($feature) {
-            'create_group' => $this->plan_limits['groups'] > 0,
-            'upload' => true,
-            'share' => true,
-            'settings' => true,
-            'face_recognition' => in_array($this->plan, $paidPlans, true),
-            default => true,
-        };
+        if(in_array($feature,['upload','share','settings'],true))return true;
+        if($feature==='create_group')return(app(\App\Services\Billing\AccountEntitlements::class)->integerLimit($this,'group_limit')??PHP_INT_MAX)>0;
+        $code=['face_recognition'=>'find_my_photos'][$feature]??$feature;
+        return app(\App\Services\Billing\AccountEntitlements::class)->allows($this,$code);
     }
 
     public function canCreateGroup(): bool
     {
-        return $this->canAccessFeature('create_group')
-            && $this->createdGroups()->count() < $this->plan_limits['groups'];
+        $limit=app(\App\Services\Billing\AccountEntitlements::class)->integerLimit($this,'group_limit');
+        return $this->canAccessFeature('create_group')&&($limit===null||$this->createdGroups()->count()<$limit);
     }
 
     public function getPlanLimitsAttribute(): array {
-        return match($this->plan) {
-            'trial'      => ['groups' => 0, 'photos_per_group' => 500, 'storage_mb' => 512, 'storage_label' => '500-photo trial'],
-            'basic'      => ['groups' => 10,  'photos_per_group' => 1000, 'storage_mb' => 20480, 'storage_label' => '20 GB'],
-            'standard'   => ['groups' => 999, 'photos_per_group' => 3000,  'storage_mb' => 102400,  'storage_label' => '100 GB'],
-            'essential'  => ['groups' => 999, 'photos_per_group' => 6000,  'storage_mb' => 256000,  'storage_label' => '250 GB'],
-            'premium'    => ['groups' => 999, 'photos_per_group' => 12500, 'storage_mb' => 614400,  'storage_label' => '600 GB'],
-            'pro'        => ['groups' => 999, 'photos_per_group' => 6000,  'storage_mb' => 256000,  'storage_label' => '250 GB'],
-            'business'   => ['groups' => 999, 'photos_per_group' => 12500, 'storage_mb' => 614400,  'storage_label' => '600 GB'],
-            'enterprise' => ['groups' => 999, 'photos_per_group' => 12500, 'storage_mb' => 9999999, 'storage_label' => 'Unlimited'],
-            default      => ['groups' => 3,   'photos_per_group' => 100,   'storage_mb' => 1024,    'storage_label' => '1 GB'],
-        };
+        if($this->isTrial())return['groups'=>0,'photos_per_group'=>500,'storage_mb'=>0,'storage_label'=>'500-photo trial'];
+        $s=app(\App\Services\Billing\AccountEntitlements::class)->snapshot($this);return['groups'=>$s['group_limit']??PHP_INT_MAX,'photos_per_group'=>$s['photo_limit'],'photo_limit'=>$s['photo_limit'],'video_storage_limit_mb'=>$s['video_limit_mb'],'photo_delete_reupload_limit'=>$s['photo_reuse_limit'],'video_delete_reupload_limit_mb'=>$s['video_limit_mb']*2,'deleted_media_usage_release_hours'=>24,'storage_mb'=>0,'storage_label'=>number_format($s['photo_limit']).' photos'];
     }
 
     public function getStorageUsedMbAttribute(): float { return round($this->storage_used / 1048576, 2); }
@@ -124,7 +125,7 @@ class User extends Authenticatable
     }
     public function getStoragePercentAttribute(): int {
         $limitMb = $this->plan_limits['storage_mb'];
-        if ($limitMb >= 9999999) return 0;
+        if ($limitMb <= 0 || $limitMb >= 9999999) return 0;
         return min(100, (int)(($this->storage_used_mb / $limitMb) * 100));
     }
 

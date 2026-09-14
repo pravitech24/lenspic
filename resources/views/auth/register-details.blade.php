@@ -9,7 +9,7 @@
             <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-600 to-pink-500 text-2xl text-white shadow-lg">
                 ⚡
             </div>
-            <h1 class="text-3xl font-bold tracking-tight text-slate-900">Complete your Kwikpic account</h1>
+            <h1 class="text-3xl font-bold tracking-tight text-slate-900">Complete your LensPic account</h1>
             <p class="mt-2 text-base text-slate-600">We’ll create your account for the {{ session('signup.role') === 'photographer' ? 'photographer' : 'user' }} experience.</p>
         </div>
 

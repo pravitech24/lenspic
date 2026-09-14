@@ -1,0 +1,10 @@
+<?php
+namespace App\Http\Requests;
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+class UpdateSubscriptionPlanRequest extends FormRequest
+{
+ public function authorize():bool{return$this->user()?->isSuperAdmin()===true;}
+ public function rules():array{return['name'=>['required','string','max:100'],'short_description'=>['required','string','max:500'],'rank'=>['required','integer','between:0,65535'],'display_order'=>['required','integer','between:0,65535'],'is_active'=>['required','boolean'],'is_public'=>['required','boolean'],'is_recommended'=>['required','boolean'],'badge_text'=>['nullable','string','max:80'],'badge_style'=>['nullable',Rule::in(['primary','success','warning'])],'photo_storage_limit'=>['required','integer','min:0','max:4000000000'],'photo_reuse_limit'=>['required','integer','gte:photo_storage_limit','max:4000000000'],'video_storage_mb'=>['required','integer','min:0'],'team_seat_limit'=>['nullable','integer','min:0','max:65535'],'group_limit'=>['nullable','integer','min:0'],'guest_limit'=>['nullable','integer','min:0'],'prices.quarterly'=>['required_if:is_active,1','nullable','regex:/^\d{1,9}(\.\d{1,2})?$/'],'prices.yearly'=>['required_if:is_active,1','nullable','regex:/^\d{1,9}(\.\d{1,2})?$/'],'gst_basis_points'=>['required','integer','between:0,5000'],'comparison_prices.quarterly'=>['nullable','regex:/^\d{1,9}(\.\d{1,2})?$/'],'comparison_prices.yearly'=>['nullable','regex:/^\d{1,9}(\.\d{1,2})?$/'],'razorpay_plan_ids.quarterly'=>['nullable','string','max:100'],'razorpay_plan_ids.yearly'=>['nullable','string','max:100'],'features'=>['required','array'],'features.*.included'=>['sometimes','boolean'],'features.*.is_addon'=>['sometimes','boolean'],'features.*.addon_price'=>['nullable','regex:/^\d{1,9}(\.\d{1,2})?$/'],'features.*.display_label'=>['nullable','string','max:160'],'features.*.display_order'=>['required','integer','between:0,65535']];}
+ public function messages():array{return['prices.*.regex'=>'Enter a valid rupee amount with no more than two decimal places.','features.*.addon_price.regex'=>'Enter a valid add-on price with no more than two decimal places.'];}
+}

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.lenspic.queue-worker</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/middastouch/Library/Application Support/Herd/bin/php83</string>
+        <string>-d</string>
+        <string>memory_limit=1G</string>
+        <string>-d</string>
+        <string>max_execution_time=0</string>
+        <string>artisan</string>
+        <string>queue:work</string>
+        <string>database</string>
+        <string>--queue=media-high,media-default,exports,maintenance,default</string>
+        <string>--sleep=1</string>
+        <string>--tries=4</string>
+        <string>--timeout=600</string>
+        <string>--max-time=3600</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/middastouch/Herd/lenspic</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+    <key>StandardOutPath</key>
+    <string>/Users/middastouch/Herd/lenspic/storage/logs/queue-worker.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/middastouch/Herd/lenspic/storage/logs/queue-worker-error.log</string>
+</dict>
+</plist>

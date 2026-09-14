@@ -3,18 +3,21 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
 class Group extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'name', 'description', 'event_date', 'event_type',
-        'cover_photo', 'share_token', 'creator_id', 'is_active',
+        'cover_photo', 'cover_media_asset_id', 'pending_cover_media_asset_id', 'share_token', 'creator_id', 'is_active',
         'allow_guest_upload', 'watermark_enabled', 'watermark_text',
         'face_recognition_enabled', 'privacy',
         'event_code','invitation_token','invitation_expires_at','event_code_expires_at',
         'membership_status','membership_limit','location',
         'anyone_with_link_can_join','anonymous_access_mode','downloads_enabled',
+        'favourites_enabled',
         'participants_can_edit_identity','access_policy_version',
     ];
 
@@ -30,6 +33,7 @@ class Group extends Model
         'event_code_expires_at' => 'datetime',
         'anyone_with_link_can_join' => 'boolean',
         'downloads_enabled' => 'boolean',
+        'favourites_enabled' => 'boolean',
         'participants_can_edit_identity' => 'boolean',
     ];
 
@@ -48,6 +52,8 @@ class Group extends Model
     public function photos()   { return $this->hasMany(Photo::class); }
     public function folders()  { return $this->hasMany(Folder::class)->ordered(); }
     public function accessInvites() { return $this->hasMany(GroupAccessInvite::class); }
+    public function coverMediaAsset() { return $this->belongsTo(MediaAsset::class, 'cover_media_asset_id'); }
+    public function pendingCoverMediaAsset() { return $this->belongsTo(MediaAsset::class, 'pending_cover_media_asset_id'); }
 
     public function members()
     {
@@ -76,7 +82,7 @@ class Group extends Model
     }
 
     public function membershipFor(User $user) { return $this->members()->where('user_id',$user->id)->first(); }
-    public function hasFullAccess(User $user): bool { return $this->isAdmin($user) || $this->members()->where('user_id',$user->id)->wherePivot('membership_status','active')->wherePivot('access_type',GroupAccessInvite::FULL)->exists(); }
+    public function hasFullAccess(User $user): bool { return app(\App\Services\GroupAccessResolver::class)->canViewFullGallery($this,$user); }
 
     public function regenerateToken(): void { $this->update(['share_token' => Str::random(12)]); }
     public function getInvitationUrlAttribute(): string { return route('invitations.show', $this->invitation_token); }

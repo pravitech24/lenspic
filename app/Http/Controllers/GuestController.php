@@ -9,11 +9,12 @@ use App\Services\GroupAccessResolver;
 
 class GuestController extends Controller
 {
-    public function viewGroup(Group $group, GroupAccessResolver $access)
+    public function viewGroup(Group $group, GroupAccessResolver $access, \App\Services\Branding\BusinessBrandingPresenter $presenter)
     {
         abort_unless($group->is_active && $access->role($group, null) === "anonymous_full", 404);
         $photos = $group->photos()->latest()->paginate(30);
-        return view('guest.group', compact('group', 'photos'));
+        $group->load('creator.businessBranding');$branding=$presenter->gallery($group);
+        return view('guest.group', compact('group', 'photos','branding'));
     }
 
     public function invite(Request $request, string $code)
@@ -31,7 +32,7 @@ class GuestController extends Controller
         }
 
         if ($accessType === 'viewer') {
-            return redirect()->route('guest.selfie', ['group' => $group]);
+            return redirect()->route('groups.join-code');
         }
 
         return redirect()->route('guest.group', ['group' => $group]);
@@ -40,50 +41,6 @@ class GuestController extends Controller
     public function selfieMatch(Request $request, Group $group, FaceRecognitionService $faceRecognitionService, GroupAccessResolver $access)
     {
         abort_unless($group->is_active && in_array($access->role($group, null), ["anonymous_face_only", "anonymous_full"], true), 404);
-        $request->validate([
-            'name'   => 'required|string',
-            'phone'  => 'required|string',
-            'selfie' => 'required|image|max:5120',
-        ]);
-
-        $photoLimit = (int) config('services.face_recognition.photo_limit', 0);
-        $photosQuery = $group->photos()->latest();
-        if ($photoLimit > 0) {
-            $photosQuery->limit($photoLimit);
-        }
-        $photos = $photosQuery->get();
-
-        if ($photos->isEmpty()) {
-            return view('guest.results', [
-                'group' => $group,
-                'photos' => collect(),
-                'name' => $request->name,
-            ]);
-        }
-
-        try {
-            $matches = $faceRecognitionService->matchGroupPhotos($group, $request->file('selfie'), $photos);
-        } catch (\RuntimeException $exception) {
-            report($exception);
-
-            return back()
-                ->withInput($request->only(['name', 'phone']))
-                ->withErrors(['selfie' => 'Face recognition is temporarily unavailable. Please try again later.']);
-        }
-
-        $photosById = $photos->keyBy('id');
-        $matchedPhotos = $matches
-            ->map(fn (array $match) => $photosById->get($match['photo_id']))
-            ->filter()
-            ->values()
-            ->take((int) config('services.face_recognition.result_limit', 3));
-
-        $request->session()->put("guest_face_matches.".$group->id, $matchedPhotos->pluck("id")->all());
-
-        return view('guest.results', [
-            'group' => $group,
-            'photos' => $matchedPhotos,
-            'name' => $request->name,
-        ]);
+        abort(410, 'Join the Group and choose Find My Photos to review biometric consent.');
     }
 }

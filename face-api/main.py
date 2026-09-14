@@ -1,11 +1,14 @@
 from typing import Optional
+import os
+import secrets
 
 from fastapi import FastAPI, HTTPException, Request, UploadFile
 
 from app.matcher import match_faces
 from app.schemas import MatchItem, RecognizeResponse
 
-app = FastAPI(title="Kwikpic Face Recognition API", version="0.1.0")
+app = FastAPI(title="LensPic Face Recognition API", version="0.1.0")
+API_TOKEN = os.getenv("FACE_RECOGNITION_API_TOKEN", "")
 
 
 @app.get("/health")
@@ -15,6 +18,11 @@ def health() -> dict[str, str]:
 
 @app.post("/recognize", response_model=RecognizeResponse)
 async def recognize(request: Request) -> RecognizeResponse:
+    if not API_TOKEN:
+        raise HTTPException(status_code=503, detail="Face service authentication is not configured.")
+    supplied = request.headers.get("authorization", "").removeprefix("Bearer ").strip()
+    if not supplied or not secrets.compare_digest(supplied, API_TOKEN):
+        raise HTTPException(status_code=401, detail="Unauthorized.")
     form = await request.form()
 
     selfie = form.get("selfie")

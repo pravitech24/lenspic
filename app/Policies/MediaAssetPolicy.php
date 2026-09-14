@@ -2,4 +2,4 @@
 namespace App\Policies;
 use App\Models\{MediaAsset,User};
 use Illuminate\Support\Facades\Gate;
-class MediaAssetPolicy { public function view(User $user,MediaAsset $asset): bool{return $asset->photo?Gate::forUser($user)->allows('view',$asset->photo):false;} public function download(User $user,MediaAsset $asset): bool{return $asset->photo?Gate::forUser($user)->allows('download',$asset->photo):false;} }
+class MediaAssetPolicy { public function view(User $user,MediaAsset $asset): bool{return $asset->kind==='group_cover'?($asset->group&&Gate::forUser($user)->allows('view',$asset->group)):($asset->photo?Gate::forUser($user)->allows('view',$asset->photo):false);} public function download(User $user,MediaAsset $asset): bool{return $asset->kind==='group_cover'?false:($asset->photo?Gate::forUser($user)->allows('download',$asset->photo):false);} }

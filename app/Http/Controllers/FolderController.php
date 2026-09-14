@@ -119,8 +119,10 @@ class FolderController extends Controller
         ]);
 
         $photos = $group->photos()->whereIn('id', $validated['photo_ids'])->get();
+        abort_unless($photos->count() === count(array_unique($validated['photo_ids'])), 422, 'Every selected photo must belong to this group.');
 
         foreach ($photos as $photo) {
+            \Illuminate\Support\Facades\Gate::authorize('update', $photo);
             $photo->update(['folder_id' => $folder->id]);
         }
 

@@ -1,4 +1,4 @@
-# Kwikpic Face Recognition API
+# LensPic Face Recognition API
 
 This is the Python FastAPI service that matches the Laravel client contract.
 
@@ -53,7 +53,7 @@ docker compose up --build face-api
 - `FACE_RECOGNITION_API_URL=http://127.0.0.1:8001`
 - `FACE_RECOGNITION_MATCH_PATH=/recognize`
 - `FACE_RECOGNITION_TIMEOUT=90`
-- `FACE_RECOGNITION_API_TOKEN=`
+- `FACE_RECOGNITION_API_TOKEN=` (required; `/recognize` fails closed when absent)
 
 ## Notes
 

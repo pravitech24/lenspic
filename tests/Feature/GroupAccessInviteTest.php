@@ -35,7 +35,7 @@ class GroupAccessInviteTest extends TestCase {
     }
     public function test_partial_join_and_full_upgrade_never_duplicate_membership(): void {
         $owner=$this->user();$member=$this->user();$group=$this->group($owner);$partial=GroupAccessInvite::makeFor($group,'partial_access',$owner->id);$full=GroupAccessInvite::makeFor($group,'full_access',$owner->id);
-        $this->actingAs($member)->get('/join/'.$partial->invitation_token)->assertOk();$this->post('/join/'.$partial->invitation_token)->assertRedirect('/groups/'.$group->id.'/discover');
+        $this->actingAs($member)->get('/join/'.$partial->invitation_token)->assertOk();$this->post('/join/'.$partial->invitation_token)->assertRedirect('/groups/'.$group->id);
         $this->get('/join/'.$full->invitation_token)->assertOk();$this->post('/join/'.$full->invitation_token)->assertRedirect('/groups/'.$group->id);
         $this->assertSame(1,$group->members()->where('user_id',$member->id)->count());$this->assertSame('full_access',$group->membershipFor($member)->pivot->access_type);
         $this->actingAs($member)->get('/join/'.$partial->invitation_token);$this->post('/join/'.$partial->invitation_token);$this->assertSame('full_access',$group->membershipFor($member)->pivot->access_type);

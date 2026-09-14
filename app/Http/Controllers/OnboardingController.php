@@ -1,65 +1,70 @@
 <?php
 namespace App\Http\Controllers;
 
+use App\Services\Auth\{OnboardingState, AuthenticatedLanding};
 use App\Models\PhotographerProfile;
-use App\Models\SelfieVerification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 
 class OnboardingController extends Controller
 {
     public function resume(Request $request) {
-        $u=$request->user();
-        if ($u->onboarding_completed_at) return redirect()->route('welcome.start');
-        return match($u->onboarding_step) {
-            'selfie_pending'=>redirect()->route('onboarding.selfie'),
-            'user_profile_pending','photographer_profile_pending'=>redirect()->route('onboarding.profile'),
-            default=>redirect()->route('onboarding.role'),
-        };
+        $step=app(OnboardingState::class)->step($request->user());
+        return $step ? redirect()->route('onboarding.'.$step) : redirect()->to(app(AuthenticatedLanding::class)->afterAuthentication($request));
     }
-    public function role(Request $request) { return Inertia::render('Onboarding',['step'=>'role','user'=>$request->user()]); }
+    private function guardStep(Request $request, string $expected) {
+        $step=app(OnboardingState::class)->step($request->user());
+        if ($step!==$expected) return $step ? redirect()->route('onboarding.'.$step) : redirect()->to(app(AuthenticatedLanding::class)->afterAuthentication($request));
+        return null;
+    }
+    public function role(Request $request) {
+        if ($redirect=$this->guardStep($request,'role')) return $redirect;
+        return Inertia::render('Onboarding',['step'=>'role','user'=>$request->user(),'accountType'=>null]);
+    }
     public function storeRole(Request $request) {
-        $data=$request->validate(['role'=>['required',Rule::in(['user','photographer'])]]);
-        $step=$data['role']==='photographer'?'selfie_pending':'user_profile_pending';
-        $request->user()->update(['account_type'=>$data['role'],'role'=>$data['role'],'role_assigned_at'=>now(),'onboarding_step'=>$step]);
-        return redirect()->route('onboarding.resume');
+        return DB::transaction(function () use ($request) {
+            $user=\App\Models\User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            $request->setUserResolver(fn()=>$user);
+            if ($redirect=$this->guardStep($request,'role')) return $redirect;
+            $data=$request->validate(['role'=>['required',Rule::in(['user','photographer'])]]);
+            $step=$data['role']==='photographer'?'photographer_profile_pending':'user_profile_pending';
+            $user->update(['account_type'=>$data['role'],'role_assigned_at'=>now(),'onboarding_step'=>$step]);
+            \Illuminate\Support\Facades\Auth::setUser($user);
+            return redirect()->route('onboarding.resume');
+        });
     }
+    // Retired onboarding capture URLs remain safe for old bookmarks and forms.
     public function selfie(Request $request) {
-        abort_unless($request->user()->account_type==='photographer',403);
-        return view('auth.selfie-verification');
+        return $this->resume($request);
     }
     public function storeSelfie(Request $request) {
-        abort_unless($request->user()->account_type==='photographer',403);
-        $request->validate(['selfie'=>['required','image','mimes:jpeg,jpg,png,webp','max:8192','dimensions:min_width=320,min_height=320']]);
-        $size=getimagesize($request->file('selfie')->getRealPath());
-        if (!$size) return back()->withErrors(['selfie'=>'The captured image could not be read. Please retake it.']);
-        $path=$request->file('selfie')->store('selfie-verifications/'.$request->user()->id, 'local');
-        SelfieVerification::create(['user_id'=>$request->user()->id,'image_path'=>$path,'verification_status'=>'manual_review']);
-        $request->user()->update(['onboarding_step'=>'photographer_profile_pending']);
-        return redirect()->route('onboarding.profile')->with('success','Selfie captured and queued for review.');
+        return $this->resume($request);
     }
     public function profile(Request $request) {
-        abort_if(!in_array($request->user()->onboarding_step,['user_profile_pending','photographer_profile_pending']),403);
-        return Inertia::render('Onboarding',['step'=>'profile','user'=>$request->user()]);
+        if ($redirect=$this->guardStep($request,'profile')) return $redirect;
+        return Inertia::render('Onboarding',['step'=>'profile','user'=>$request->user(),'accountType'=>app(OnboardingState::class)->photographer($request->user())?'photographer':'user','profileDefaults'=>array_merge(['name'=>$request->user()->name==='New user'?'':$request->user()->name,'email'=>$request->user()->email],$request->user()->photographerProfile?->only(['first_name','last_name','company_name'])??[])]);
     }
     public function storeProfile(Request $request) {
+        if ($redirect=$this->guardStep($request,'profile')) return $redirect;
         $u=$request->user();
         if ($u->email_verified_at) $request->merge(['email'=>$u->email]);
-        if ($u->account_type==='photographer') {
-            $selfie=$u->selfieVerifications()->whereIn('verification_status',['passed','manual_review'])->latest()->first();
-            if (!$selfie) throw \Illuminate\Validation\ValidationException::withMessages(['selfie'=>'A valid selfie quality check is required.']);
+        if (app(OnboardingState::class)->photographer($u)) {
             $data=$request->validate(['first_name'=>['required','string','min:2','max:100'],'last_name'=>['required','string','min:2','max:100'],'company_name'=>['required','string','min:2','max:160'],'email'=>['required','email','max:255',Rule::unique('users','email')->ignore($u->id),Rule::unique('photographer_profiles','company_email')->ignore($u->photographerProfile?->id)]]);
-            DB::transaction(function() use($u,$data,$selfie) { $email=strtolower(trim($data['email'])); $u->update(['name'=>trim($data['first_name']).' '.trim($data['last_name']),'email'=>$email,'onboarding_step'=>'completed','onboarding_completed_at'=>now()]); PhotographerProfile::updateOrCreate(['user_id'=>$u->id],['first_name'=>trim($data['first_name']),'last_name'=>trim($data['last_name']),'company_name'=>trim($data['company_name']),'company_email'=>$email,'selfie_verification_id'=>$selfie->id]); });
+            DB::transaction(function() use($u,$data) { $email=strtolower(trim($data['email'])); $u->update(['name'=>trim($data['first_name']).' '.trim($data['last_name']),'email'=>$email,'onboarding_step'=>'completed','onboarding_completed_at'=>now()]); PhotographerProfile::updateOrCreate(['user_id'=>$u->id],['first_name'=>trim($data['first_name']),'last_name'=>trim($data['last_name']),'company_name'=>trim($data['company_name']),'company_email'=>$email]); });
         } else {
             $data=$request->validate(['name'=>['required','string','min:2','max:100','regex:/^[\pL\pM .\'\-]+$/u'],'email'=>[$u->email_verified_at?'required':'nullable','email','max:255',Rule::unique('users','email')->ignore($u->id)]]);
             DB::transaction(fn()=>$u->update(['name'=>preg_replace('/\s+/',' ',trim($data['name'])),'email'=>isset($data['email'])?strtolower(trim($data['email'])):null,'onboarding_step'=>'completed','onboarding_completed_at'=>now()]));
         }
-        if ($request->session()->has('validated_group_invitation')) return redirect()->route('groups.join.complete');
-        if ($request->session()->has('pending_invitation')) return redirect()->route('invitations.show',$request->session()->get('pending_invitation'));
-        return redirect()->route('welcome.start');
+        $u->unsetRelation('photographerProfile');
+        if (!app(OnboardingState::class)->photographer($u) && !$request->session()->has('validated_group_invitation') && !$request->session()->has('pending_invitation') && !$request->session()->has('pending_team_invitation') && !$request->session()->has('find_my_photos_intent')) return redirect()->route('welcome.start');
+        return redirect()->to(app(AuthenticatedLanding::class)->afterAuthentication($request));
     }
-    public function welcome(Request $request) { abort_unless($request->user()->onboarding_completed_at,403); return view('auth.welcome-start',['user'=>$request->user()]); }
+    public function welcome(Request $request) {
+        $state=app(OnboardingState::class);
+        if (!$state->complete($request->user())) return $this->resume($request);
+        if ($state->photographer($request->user()) || $request->user()->isSuperAdmin()) return redirect()->to(app(AuthenticatedLanding::class)->afterAuthentication($request));
+        return view('auth.welcome-start',['user'=>$request->user()]);
+    }
 }

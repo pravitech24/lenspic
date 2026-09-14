@@ -1,0 +1,3 @@
+<?php
+namespace App\Models;use Illuminate\Database\Eloquent\Model;
+class WatermarkSetting extends Model{protected $fillable=['studio_owner_id','size_percentage','position','logo_disk','logo_object_key','logo_mime_type','logo_size_bytes','logo_checksum','settings_version'];protected $hidden=['logo_disk','logo_object_key','logo_checksum'];protected $casts=['size_percentage'=>'integer','logo_size_bytes'=>'integer','settings_version'=>'integer'];public function owner(){return$this->belongsTo(User::class,'studio_owner_id');}public function hasLogo():bool{return filled($this->logo_object_key)&&filled($this->logo_checksum);}}

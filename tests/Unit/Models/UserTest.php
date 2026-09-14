@@ -28,8 +28,8 @@ class UserTest extends TestCase
         $this->assertSame('Premium', $user->plan_label);
         $this->assertSame('Kwik Studio', $user->studio_name);
         $this->assertSame('50 GB', $user->storage_used_human);
-        $this->assertSame(8, $user->storage_percent);
-        $this->assertSame('600 GB', $user->plan_limits['storage_label']);
+        $this->assertSame(0, $user->storage_percent);
+        $this->assertSame('500,000 photos', $user->plan_limits['storage_label']);
         $this->assertStringStartsWith('https://ui-avatars.com/api/', $user->profile_photo_url);
     }
 

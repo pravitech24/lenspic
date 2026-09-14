@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Group;
 use App\Models\User;
+use App\Models\SubscriptionPlan;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,7 @@ class PlanStorageEnforcementTest extends TestCase
             'email' => 'plan@example.com',
             'phone' => '9999999999',
             'password' => Hash::make('password'),
+            'account_type' => 'photographer',
         ]);
 
         for ($i = 0; $i < 3; $i++) {
@@ -110,7 +112,7 @@ class PlanStorageEnforcementTest extends TestCase
             'email' => 'storage@example.com',
             'phone' => '8888888888',
             'password' => Hash::make('password'),
-            'storage_used' => 1_073_741_824 + 1,
+            'storage_used' => 0,
         ]);
 
         $group = Group::create([
@@ -125,12 +127,13 @@ class PlanStorageEnforcementTest extends TestCase
             'joined_at' => now(),
         ]);
 
+        SubscriptionPlan::where('code','free')->update(['photo_storage_limit'=>0]);
         $response = $this->actingAs($user)->post(route('photos.store', $group), [
             'photos' => [UploadedFile::fake()->image('photo.jpg')],
         ]);
 
         $response->assertRedirect();
-        $response->assertSessionHas('error');
+        $response->assertSessionHasErrors('photos');
         $this->assertCount(0, $group->photos()->get());
     }
 }

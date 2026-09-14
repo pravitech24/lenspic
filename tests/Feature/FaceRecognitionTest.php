@@ -17,7 +17,7 @@ class FaceRecognitionTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_authenticated_face_search_uses_fastapi_matches(): void
+    public function test_legacy_authenticated_search_cannot_process_without_consent(): void
     {
         Storage::fake('public');
         config(['services.face_recognition.url' => 'http://fastapi.test']);
@@ -66,14 +66,9 @@ class FaceRecognitionTest extends TestCase
 
         $this->actingAs($user)
             ->postJson(route('face.recognize', $group))
-            ->assertOk()
-            ->assertJsonPath('photos.0.id', $photo->id)
-            ->assertJsonPath('photos.0.url', asset('storage/' . $photoPath));
+            ->assertGone();
 
-        Http::assertSent(function ($request) {
-            $body = (string) $request->body();
-            return str_contains($body, 'name="photo_ids[]"') && str_contains($body, 'name="photos[]"');
-        });
+        Http::assertNothingSent();
     }
 
     public function test_weak_matches_are_filtered_from_results(): void
@@ -102,7 +97,7 @@ class FaceRecognitionTest extends TestCase
         $method = new \ReflectionMethod($service, 'preparePhotoForRecognition');
         $method->setAccessible(true);
 
-        $path = tempnam(sys_get_temp_dir(), 'kwikpic');
+        $path = tempnam(sys_get_temp_dir(), 'lenspic');
         file_put_contents($path, 'not-a-valid-image');
 
         $result = $method->invoke($service, $path);
@@ -112,7 +107,7 @@ class FaceRecognitionTest extends TestCase
         @unlink($path);
     }
 
-    public function test_guest_selfie_match_uses_fastapi_matches(): void
+    public function test_legacy_guest_selfie_cannot_process_without_consent(): void
     {
         Storage::fake('public');
         config(['services.face_recognition.url' => 'http://fastapi.test']);
@@ -157,7 +152,7 @@ class FaceRecognitionTest extends TestCase
             'selfie' => UploadedFile::fake()->image('selfie.jpg'),
         ]);
 
-        $response->assertOk();
-        $response->assertSee('Found 1 Photos of You!');
+        $response->assertGone();
+        Http::assertNothingSent();
     }
 }

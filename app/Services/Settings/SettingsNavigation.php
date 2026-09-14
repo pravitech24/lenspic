@@ -1,0 +1,3 @@
+<?php
+namespace App\Services\Settings;use App\Models\{Group,User};use App\Services\Team\TeamAuthorization;
+class SettingsNavigation{public function for(?User$actor):array{if(!$actor)return[];$auth=app(TeamAuthorization::class);$owner=$auth->ownerFor($actor)??$actor;return collect(config('settings_navigation'))->sortBy('sort')->filter(function($item)use($actor,$owner,$auth){$p=$item['permission'];if(!$p)return true;if($p==='studio_settings')return$actor->can('create',Group::class);return$auth->allows($actor,$owner,$p);})->map(fn($item)=>['key'=>$item['key'],'label'=>$item['label'],'href'=>route($item['route']),'route'=>$item['route'],'active'=>$item['active'],'icon'=>$item['icon']??null,'permission'=>$item['permission'],'badge'=>null])->values()->all();}}

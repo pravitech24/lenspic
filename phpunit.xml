@@ -15,7 +15,7 @@
 
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="APP_CONFIG_CACHE" value="/tmp/kwikpic-v2-phpunit-config.php"/>
+        <env name="APP_CONFIG_CACHE" value="/tmp/lenspic-phpunit-config.php"/>
         <env name="APP_DEBUG" value="true"/>
         <env name="CACHE_STORE" value="array"/>
         <env name="SESSION_DRIVER" value="array"/>

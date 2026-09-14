@@ -11,9 +11,10 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
+        $this->call(SubscriptionCatalogSeeder::class);
         $admin = User::create([
             'name'              => 'Super Admin',
-            'email'             => 'admin@kwikpic.in',
+            'email'             => 'admin@lenspic.in',
             'password'          => Hash::make('password'),
             'email_verified_at' => now(),
             'is_admin'          => true,
@@ -21,7 +22,7 @@ class DatabaseSeeder extends Seeder
 
         $demo = User::create([
             'name'              => 'Demo User',
-            'email'             => 'demo@kwikpic.in',
+            'email'             => 'demo@lenspic.in',
             'password'          => Hash::make('password'),
             'email_verified_at' => now(),
             'is_admin'          => false,

@@ -38,7 +38,7 @@
     </div>
     <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
       @if($group->face_recognition_enabled && $isMember && auth()->user()->canAccessFeature('face_recognition'))
-      <a href="{{ route('face.show',$group) }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-face-smile"></i> Find My Photos</a>
+      <a href="{{ route('biometric.entry',$group) }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-face-smile"></i> Find My Photos</a>
       @endif
       @if(auth()->user()->canAccessFeature('settings'))
       <a href="{{ route('folders.index',$group) }}" class="btn btn-outline btn-sm"><i class="fa-solid fa-folder-open"></i> Folders</a>
@@ -64,8 +64,8 @@
       <div class="upload-zone" id="upZone" style="border-radius:0;">
         <div class="icon"><i class="fa-solid fa-cloud-arrow-up"></i></div>
         <p style="font-weight:600;margin-bottom:.25rem;">Drag & drop or click to upload photos</p>
-        <p style="font-size:12.5px;color:#94a3b8;">JPEG, PNG, WebP · Up to 20 files · 50MB each</p>
-        <input type="file" id="fileInp" multiple accept="image/*" hidden>
+        <p style="font-size:12.5px;color:#94a3b8;">JPG, JPEG, PNG or WebP · maximum {{ config('media.photo_upload.max_file_mb') }} MB each · up to {{ config('media.photo_upload.max_batch_files') }} photos</p>
+        <input type="file" id="fileInp" multiple accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" hidden>
       </div>
       <div id="upQueue" style="display:none;margin-top:1rem;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;">
@@ -270,6 +270,7 @@
 <script>
 const gid={{ $group->id }};
 const upUrl='{{ route("photos.store",$group) }}';
+const maxUploadFileMb={{ config('media.photo_upload.max_file_mb') }},maxUploadFileBytes=maxUploadFileMb*1048576,maxUploadBatchFiles={{ config('media.photo_upload.max_batch_files') }};
 let selFiles=[],curId=null,carouselIndex=0,zoomLevel=1,panX=0,panY=0,isDragging=false,dragStartX=0,dragStartY=0;
 let inviteState=@js($inviteState);
 let currentFolderId=null;
@@ -285,7 +286,10 @@ if(zone&&finp){
 }
 function handleFiles(files,append=true){
   const incoming=Array.from(files||[]);
-  selFiles=append?[...selFiles,...incoming]:incoming;
+  const base=append?selFiles:[];
+  const supported=incoming.filter(file=>['image/jpeg','image/png','image/webp'].includes(file.type)&&/\.(jpe?g|png|webp)$/i.test(file.name)&&file.size<=maxUploadFileBytes);
+  selFiles=[...base,...supported].slice(0,maxUploadBatchFiles);
+  if(supported.length!==incoming.length||base.length+supported.length>maxUploadBatchFiles)toast('Only supported photos up to '+maxUploadFileMb+' MB are added, with a maximum of '+maxUploadBatchFiles+'.');
   const q=document.getElementById('upQueue'),list=document.getElementById('upList'),btn=document.getElementById('upBtn');
   q.style.display='block';
   if(!append||list.children.length===0){list.innerHTML='';}

@@ -1,0 +1,1 @@
+<section class="marketing-section section-muted"><div class="marketing-container"><div class="section-heading"><span class="eyebrow">Simple workflow</span><h2>From Group setup to controlled delivery</h2></div><ol class="solution-steps">@foreach($data['workflow'] as $step)<li><span>{{ $loop->iteration }}</span><h3>{{ $step }}</h3></li>@endforeach</ol></div></section>

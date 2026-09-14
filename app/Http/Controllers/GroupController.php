@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Mail\GroupInvitationMail;
 use App\Models\Group;
 use App\Models\User;
-use App\Services\ImageOptimizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -16,6 +15,9 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Models\GroupAccessInvite;
 use App\Models\GroupAccessAudit;
+use App\Http\Requests\StoreGroupRequest;
+use App\Http\Requests\UpdateGroupRequest;
+use App\Services\Media\{GroupCoverIngestor, MediaAssetCleanup};
 
 class GroupController extends Controller
 {
@@ -27,45 +29,30 @@ class GroupController extends Controller
         return view('groups.index', compact('myGroups', 'joinedGroups'));
     }
 
-    public function create() { abort_unless(Auth::user()->account_type === 'photographer' || Auth::user()->isAdmin(), 403); return view('groups.create'); }
+    public function create() { return app(LensPicUiController::class)->create(request()); }
 
-    public function store(Request $request, ImageOptimizationService $imageOptimizationService)
+    public function store(StoreGroupRequest $request, GroupCoverIngestor $coverIngestor)
     {
-        $request->validate([
-            'name'       => 'required|string|max:100',
-            'event_type' => 'required|string',
-            'privacy'    => 'required|in:public,private,link_only',
-            'cover_photo'=> 'nullable|image|max:51200',
-            'membership_limit'=>'nullable|integer|min:2|max:100000',
-            'location'=>'nullable|string|max:255',
-            'access_options'=>['required','array','min:1'],
-            'access_options.*'=>['required','in:partial_access,full_access'],
-            'submission_token'=>['nullable','uuid'],
-        ]);
+        $this->authorize('create', Group::class);
 
         $user = Auth::user();
-        if (!$user->canCreateGroup()) {
-            if ($user->isTrial()) {
+        $studioOwner=app(\App\Services\Team\TeamAuthorization::class)->ownerFor($user)??$user;
+        if (!$studioOwner->canCreateGroup()) {
+            if ($studioOwner->isTrial()) {
                 return back()->with('error', 'Trial accounts can upload and share photos, but creating groups is disabled.');
             }
 
             return back()->with('error', 'You have reached your plan limit for creating groups.');
         }
 
-        $data = $request->except('cover_photo','access_options','submission_token');
-        $data['creator_id']               = Auth::id();
+        $data = collect($request->validated())->except('cover_photo','access_options','submission_token')->all();
+        $data['creator_id']               = $studioOwner->id;
         $data['allow_guest_upload']        = $request->boolean('allow_guest_upload');
         $data['face_recognition_enabled']  = $request->boolean('face_recognition_enabled');
         $data['watermark_enabled']         = $request->boolean('watermark_enabled');
         $data['watermark_text']            = $request->input('watermark_text');
 
-        if ($request->hasFile('cover_photo')) {
-            $optimized = $imageOptimizationService->optimizeAndStore($request->file('cover_photo'), 'covers');
-            $data['cover_photo'] = $optimized['path'];
-        }
-
-        abort_unless($user->account_type === 'photographer' || $user->isAdmin(), 403);
-        $create = function () use ($data,$request) { return DB::transaction(function () use ($data,$request) { $group=Group::create($data); $group->members()->attach(Auth::id(), ['role'=>'admin','join_method'=>'creator','membership_status'=>'active','access_type'=>'full_access','approved_at'=>now(),'approved_by'=>Auth::id(),'joined_at'=>now()]); foreach(array_unique($request->input('access_options')) as $type) GroupAccessInvite::makeFor($group,$type,Auth::id()); return $group; }); };
+        $create = function () use ($data,$request,$coverIngestor,$studioOwner) { return DB::transaction(function () use ($data,$request,$coverIngestor,$studioOwner) { $group=Group::create($data); $group->members()->attach($studioOwner->id, ['role'=>'admin','join_method'=>'creator','membership_status'=>'active','access_type'=>'full_access','approved_at'=>now(),'approved_by'=>$request->user()->id,'joined_at'=>now()]); foreach(array_unique($request->input('access_options')) as $type) GroupAccessInvite::makeFor($group,$type,$request->user()->id); if($request->hasFile('cover_photo'))$coverIngestor->ingest($request->file('cover_photo'),$group,$request->user()); return $group; }); };
         $token = $request->input('submission_token');
         if ($token) {
             $key = 'group-create:'.Auth::id().':'.$token;
@@ -74,6 +61,8 @@ class GroupController extends Controller
                 $group = $create(); Cache::put($key, $group->id, now()->addMinutes(30)); return $group;
             });
         } else $group = $create();
+
+        app(\App\Services\Notifications\NotificationService::class)->send($studioOwner, 'group:'.$group->id.':created', ['category'=>'groups','title'=>'Group created','message'=>$group->name.' is ready.','studio_id'=>$studioOwner->id,'actor_id'=>$request->user()->id,'subject_type'=>'group','subject_id'=>(string)$group->id,'action_route'=>'groups.show','action_parameters'=>['group'=>$group->id],'action_label'=>'View Group','severity'=>'success']);
 
         return redirect()->route('groups.show', $group)->with('success', 'Group created. Upload photos or invite participants when ready.');
     }
@@ -93,55 +82,45 @@ class GroupController extends Controller
         return app(LensPicUiController::class)->edit(request(), $group);
     }
 
-    public function update(Request $request, Group $group, ImageOptimizationService $imageOptimizationService)
+    public function update(UpdateGroupRequest $request, Group $group, GroupCoverIngestor $coverIngestor, MediaAssetCleanup $cleanup)
     {
-        $this->checkAdmin($group);
-        $data = $request->validate([
-            'name'       => 'sometimes|required|string|max:100',
-            'description'=> 'sometimes|nullable|string',
-            'event_type' => 'sometimes|required|string',
-            'event_date' => 'sometimes|nullable|date',
-            'privacy'    => 'sometimes|required|in:public,private,link_only',
-            'location'   => 'sometimes|nullable|string|max:255',
-            'is_active'  => 'sometimes|boolean',
-            'membership_status' => 'sometimes|required|in:open,closed',
-            'membership_limit' => 'sometimes|nullable|integer|min:2|max:100000',
-            'anyone_with_link_can_join' => 'sometimes|boolean',
-            'anonymous_access_mode' => 'sometimes|required|in:disabled,face_only,full',
-            'downloads_enabled' => 'sometimes|boolean',
-            'participants_can_edit_identity' => 'sometimes|boolean',
-            'cover_photo'=> 'nullable|image|max:102400',
-            'allow_guest_upload'       => 'sometimes|boolean',
-            'face_recognition_enabled' => 'sometimes|boolean',
-            'watermark_enabled'        => 'sometimes|boolean',
-            'watermark_text'           => 'sometimes|nullable|string|max:255',
-        ]);
+        $this->authorize('update', $group);
+        $data = collect($request->validated())->except(['cover_photo', 'remove_cover_photo'])->all();
 
-        unset($data['cover_photo']);
-
-        foreach (['is_active','anyone_with_link_can_join','downloads_enabled','participants_can_edit_identity','allow_guest_upload', 'face_recognition_enabled', 'watermark_enabled'] as $field) {
+        foreach (['is_active','anyone_with_link_can_join','downloads_enabled','favourites_enabled','participants_can_edit_identity','allow_guest_upload', 'face_recognition_enabled', 'watermark_enabled'] as $field) {
             if ($request->has($field)) {
                 $data[$field] = $request->boolean($field);
             }
         }
 
-        if ($request->hasFile('cover_photo')) {
-            if ($group->cover_photo) Storage::disk('public')->delete($group->cover_photo);
-            $optimized = $imageOptimizationService->optimizeAndStore($request->file('cover_photo'), 'covers');
-            $data['cover_photo'] = $optimized['path'];
-        }
+        DB::transaction(function () use ($request, $group, $data, $coverIngestor, $cleanup) {
+            $group->update($data);
 
-        $group->update($data);
-        return back()->with('success', 'Group settings updated!');
+            if ($request->boolean('remove_cover_photo') && !$request->hasFile('cover_photo')) {
+                $group->load('coverMediaAsset.variants', 'pendingCoverMediaAsset.variants');
+                $covers = collect([$group->coverMediaAsset, $group->pendingCoverMediaAsset])->filter()->unique('id');
+                $group->update(['cover_media_asset_id' => null, 'pending_cover_media_asset_id' => null]);
+                foreach ($covers as $cover) $cleanup->schedule($cover);
+            } elseif ($request->hasFile('cover_photo')) {
+                $coverIngestor->ingest($request->file('cover_photo'), $group, $request->user());
+            }
+        });
+
+        return back()->with('success', 'Group settings updated successfully.');
     }
 
-    public function destroy(Group $group)
+    public function destroy(Group $group, MediaAssetCleanup $cleanup, \App\Services\Storage\StorageUsage $usage, \App\Services\Storage\PlanEntitlements $plans)
     {
         \Illuminate\Support\Facades\Gate::authorize("delete", $group);
-        foreach ($group->photos as $photo) {
-            Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));
+        $group->load('coverMediaAsset.variants','pendingCoverMediaAsset.variants');
+        $covers=collect([$group->coverMediaAsset,$group->pendingCoverMediaAsset])->filter()->unique('id');
+        $group->update(['cover_media_asset_id'=>null,'pending_cover_media_asset_id'=>null]);
+        foreach($covers as$cover)$cleanup->schedule($cover);
+        $owner=$group->creator;$hours=$plans->for($owner)['deleted_media_usage_release_hours'];
+        foreach ($group->photos()->with('mediaAsset')->get() as $photo) {
+            if($asset=$photo->mediaAsset){$asset->delete();$photo->delete();$usage->record($owner,\App\Models\MediaQuotaUsageEvent::PHOTO_DELETED,$asset->quota_units,'group-photo-deleted-'.$asset->uuid,$group->id,$asset->id,Auth::id());\App\Jobs\PurgeDeletedMediaAsset::dispatch($asset->id)->delay(now()->addHours($hours))->afterCommit();}
+            else{$photo->delete();}
         }
-        if ($group->cover_photo) Storage::disk('public')->delete($group->cover_photo);
         $group->delete();
         return redirect()->route('groups.index')->with('success', 'Group deleted.');
     }

@@ -1,0 +1,3 @@
+<?php
+namespace App\Models;use Illuminate\Database\Eloquent\Model;
+class WalletTopUp extends Model{protected $fillable=['uuid','wallet_id','studio_owner_id','base_amount_minor','tax_amount_minor','total_amount_minor','currency','credit_units','payment_provider','provider_order_id','provider_payment_id','status','idempotency_key','paid_at','failed_at','refunded_at','safe_metadata'];protected $hidden=['safe_metadata'];protected $casts=['base_amount_minor'=>'integer','tax_amount_minor'=>'integer','total_amount_minor'=>'integer','credit_units'=>'integer','paid_at'=>'datetime','failed_at'=>'datetime','refunded_at'=>'datetime','safe_metadata'=>'array'];public function getRouteKeyName(){return'uuid';}public function wallet(){return$this->belongsTo(Wallet::class);}}

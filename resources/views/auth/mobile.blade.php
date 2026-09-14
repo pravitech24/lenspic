@@ -14,7 +14,7 @@
         <select name="country_code" aria-label="Country code"><option value="+91" @selected(old('country_code',$defaultCountryCode)==='+91')>🇮🇳 +91</option><option value="+1" @selected(old('country_code',$defaultCountryCode)==='+1')>🇺🇸 +1</option><option value="+44" @selected(old('country_code',$defaultCountryCode)==='+44')>🇬🇧 +44</option></select>
         <input id="phone" name="phone" type="tel" inputmode="tel" autocomplete="tel-national" value="{{ old('phone') }}" placeholder="98765 43210">
       </div>
-      <small class="delivery-note">The code will be delivered through WhatsApp.</small>
+      <small class="delivery-note">By requesting a verification code, you agree to receive a one-time authentication message on WhatsApp.</small>
     </div>
     <div data-channel-panel="email" hidden>
       <label for="email">Email address</label>

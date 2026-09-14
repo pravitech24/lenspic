@@ -131,7 +131,7 @@ class FaceRecognitionService
 
     private function preparePhotoForRecognition(string $absolutePath, string $type = 'photo'): ?string
     {
-        $targetPath = sys_get_temp_dir() . '/kwikpic-face-' . uniqid() . '.jpg';
+        $targetPath = sys_get_temp_dir() . '/lenspic-face-' . uniqid() . '.jpg';
 
         try {
             $image = @imagecreatefromstring(file_get_contents($absolutePath));
@@ -221,7 +221,7 @@ class FaceRecognitionService
     {
         $threshold = trim((string) config('services.face_recognition.min_score', ''));
         if ($threshold === '') {
-            $threshold = (string) env('FACE_RECOGNITION_MIN_SCORE', '0.35');
+            $threshold = (string) config('services.face_recognition.min_score', 0.35);
         }
 
         return max(0.0, min(0.95, (float) $threshold));
@@ -231,7 +231,7 @@ class FaceRecognitionService
     {
         $limit = (int) config('services.face_recognition.result_limit', 0);
         if ($limit <= 0) {
-            $limit = (int) env('FACE_RECOGNITION_RESULT_LIMIT', 3);
+            $limit = (int) config('services.face_recognition.result_limit', 3);
         }
 
         return max(1, $limit);

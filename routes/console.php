@@ -11,7 +11,7 @@ Artisan::command('inspire', function () {
 
 Artisan::command('face-api:start', function () {
     $script = base_path('face-api/run.sh');
-    $port = (int) env('FACE_RECOGNITION_PORT', 8001);
+    $port = (int) config('services.face_recognition.port', 8001);
 
     $socket = @fsockopen('127.0.0.1', $port, $errorCode, $errorMessage, 0.2);
     if ($socket !== false) {
@@ -30,7 +30,7 @@ Artisan::command('face-api:start', function () {
     $process = new Process(['bash', $script], base_path('face-api'));
     $process->setTimeout(null);
 
-    $this->info('Starting the Kwikpic Face Recognition API...');
+    $this->info('Starting the LensPic Face Recognition API...');
     $process->run(function (string $type, string $buffer) {
         $this->output->write($buffer);
     });
@@ -41,5 +41,8 @@ Artisan::command('face-api:start', function () {
 Schedule::job(new \App\Jobs\PruneExpiredMediaExports)->hourly()->withoutOverlapping();
 Schedule::job(new \App\Jobs\PruneBiometricData)->hourly()->withoutOverlapping();
 Schedule::job(new \App\Jobs\ReconcileStorageLedger)->dailyAt('02:30')->withoutOverlapping();
+Schedule::command('lenspic:reconcile-storage-usage')->dailyAt('02:45')->withoutOverlapping();
+Schedule::command('lenspic:prune-notifications')->dailyAt('03:15')->withoutOverlapping();
+Schedule::call(function(){\App\Models\MediaAsset::onlyTrashed()->where('kind','photo')->where('deleted_at','<=',now()->subHours(24))->eachById(fn($asset)=>\App\Jobs\PurgeDeletedMediaAsset::dispatch($asset->id));})->name('purge-retained-gallery-media')->hourly()->withoutOverlapping();
 Schedule::command('queue:prune-failed --hours=168')->daily();
 Schedule::command('horizon:snapshot')->everyFiveMinutes();

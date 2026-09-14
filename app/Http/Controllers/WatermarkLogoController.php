@@ -1,0 +1,3 @@
+<?php
+namespace App\Http\Controllers;use App\Contracts\ProtectedMediaStorage;use App\Services\Team\TeamAuthorization;use Illuminate\Http\Request;
+class WatermarkLogoController extends Controller{public function show(Request$r,TeamAuthorization$a,ProtectedMediaStorage$s){$o=$a->ownerFor($r->user());abort_unless($o&&$a->allows($r->user(),$o,'manage_watermark'),403);$w=$o->watermarkSetting()->first();abort_unless($w?->hasLogo()&&$s->exists($w->logo_object_key),404);$stream=$s->readStream($w->logo_object_key);return response()->stream(function()use($stream){fpassthru($stream);fclose($stream);},200,['Content-Type'=>$w->logo_mime_type,'Content-Length'=>(string)$w->logo_size_bytes,'Cache-Control'=>'private, no-store','X-Content-Type-Options'=>'nosniff']);}}

@@ -1,6 +1,6 @@
 {
-    "name": "kwikpic/app",
-    "description": "Kwikpic - AI powered group photo sharing",
+    "name": "lenspic/app",
+    "description": "LensPic - AI powered group photo sharing",
     "license": "MIT",
     "require": {
         "php": "^8.2",
@@ -9,7 +9,9 @@
         "league/flysystem-aws-s3-v3": "^3.0",
         "laravel/horizon": "^5.0",
         "predis/predis": "^2.3",
-        "inertiajs/inertia-laravel": "^3.3"
+        "inertiajs/inertia-laravel": "^3.3",
+        "giggsey/libphonenumber-for-php": "^9.0",
+        "twilio/sdk": "^8.12"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
@@ -44,6 +46,9 @@
                 "block": false
             }
         }
+    },
+    "scripts": {
+        "queue": "php artisan queue:work database --queue=media-high,media-default,exports,maintenance --tries=4 --timeout=600"
     },
     "minimum-stability": "stable",
     "prefer-stable": true

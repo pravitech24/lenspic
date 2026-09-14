@@ -1,0 +1,3 @@
+<?php
+use Illuminate\Database\Migrations\Migration;use Illuminate\Database\Schema\Blueprint;use Illuminate\Support\Facades\Schema;
+return new class extends Migration {public function up():void{Schema::table('media_assets',function(Blueprint$table){$table->string('quality_mode',30)->default('original');$table->unsignedBigInteger('original_upload_bytes')->nullable();$table->unsignedBigInteger('stored_master_bytes')->nullable();$table->unsignedBigInteger('storage_saved_bytes')->default(0);$table->string('encoder',80)->nullable();});}public function down():void{Schema::table('media_assets',fn(Blueprint$table)=>$table->dropColumn(['quality_mode','original_upload_bytes','stored_master_bytes','storage_saved_bytes','encoder']));}};

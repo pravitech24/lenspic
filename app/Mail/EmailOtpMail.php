@@ -14,6 +14,6 @@ class EmailOtpMail extends Mailable
 
     public function build(): self
     {
-        return $this->subject('Your Kwikpic verification code')->view('emails.otp');
+        return $this->subject('Your LensPic verification code')->view('emails.otp');
     }
 }

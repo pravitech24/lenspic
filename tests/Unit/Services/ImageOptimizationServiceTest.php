@@ -13,7 +13,7 @@ class ImageOptimizationServiceTest extends TestCase
     {
         Storage::fake('public');
 
-        $sourcePath = tempnam(sys_get_temp_dir(), 'kwikpic-src-');
+        $sourcePath = tempnam(sys_get_temp_dir(), 'lenspic-src-');
         $image = imagecreatetruecolor(800, 600);
         imagefill($image, 0, 0, imagecolorallocate($image, 255, 0, 0));
         imagejpeg($image, $sourcePath, 100);

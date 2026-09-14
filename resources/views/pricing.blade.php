@@ -155,7 +155,7 @@ footer{border-top:1px solid var(--border);padding:2rem;text-align:center;color:v
   <span><i class="fa-solid fa-circle-check"></i> Facial Recognition</span>
   <span><i class="fa-solid fa-circle-check"></i> User Registration</span>
   <span><i class="fa-solid fa-circle-check"></i> Album Creation</span>
-  <span><i class="fa-solid fa-circle-check"></i> 24x7 WhatsApp Support</span>
+  @if($supportUrl=app(\App\Services\WhatsAppLinks::class)->support())<a href="{{ $supportUrl }}" target="_blank" rel="noopener noreferrer">WhatsApp Support · {{ config('whatsapp.support_availability') }}</a>@else<a href="mailto:hello@lenspic.in">Email Support</a>@endif
 </div>
 
 <!-- PLANS -->
@@ -295,7 +295,7 @@ footer{border-top:1px solid var(--border);padding:2rem;text-align:center;color:v
           ['Digital Album',           false,   false,    false,    true],
           ['Sponsor Branding',        false,   false,    false,    true],
           ['Instant Upload',          false,   false,    false,    true],
-          ['WhatsApp Support',        true,    true,     true,     true],
+          [app(\App\Services\WhatsAppLinks::class)->support() ? 'WhatsApp Support (link above)' : 'Email Support',        true,    true,     true,     true],
         ];
         @endphp
         @foreach($rows as $row)
@@ -539,9 +539,10 @@ async function launchCheckout(plan) {
     key: data.key,
     amount: data.amount,
     currency: data.currency,
-    name: data.name,
+    name: data.display_name,
     description: data.description,
     order_id: data.order_id,
+    image: data.logo_url || undefined,
     prefill: data.prefill,
     theme: { color: '#6366f1' },
     handler: function (payload) {

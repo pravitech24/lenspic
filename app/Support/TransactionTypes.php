@@ -1,0 +1,2 @@
+<?php
+namespace App\Support;final class TransactionTypes{public const LABELS=['plan_purchase'=>'Plan Purchase','plan_renewal'=>'Plan Renewal','payment_attempt'=>'Plan Payment','wallet_top_up'=>'Wallet Top-up','wallet_credit'=>'Credits Added','wallet_debit'=>'Credits Used','wallet_refund'=>'Wallet Refund','wallet_reversal'=>'Wallet Reversal','wallet_adjustment'=>'Wallet Adjustment'];public static function label(string$t):string{return self::LABELS[$t]??'Transaction';}}

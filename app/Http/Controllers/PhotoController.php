@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Group;
 use App\Models\Photo;
+use App\Models\MediaAsset;
 use App\Services\ImageOptimizationService;
 use App\Services\Media\PrivateMediaIngestor;
 use Illuminate\Http\Request;
@@ -40,9 +41,11 @@ class PhotoController extends Controller
             return back()->with('error', 'Please choose at least one photo to upload.');
         }
 
+        $maxFiles = config('media.photo_upload.max_batch_files');
+        $maxFileKb = config('media.photo_upload.max_file_mb') * 1024;
         $validator = Validator::make(
             ['photos' => $files],
-            ['photos' => 'required|array|max:20', 'photos.*' => 'image|mimes:jpeg,jpg,png,webp|max:51200']
+            ['photos' => "required|array|max:{$maxFiles}", 'photos.*' => "image|mimes:jpeg,jpg,png,webp|max:{$maxFileKb}"]
         );
 
         if ($validator->fails()) {
@@ -184,45 +187,86 @@ class PhotoController extends Controller
         return view('photos.show', compact('group', 'photo', 'isAdmin', 'isLiked'));
     }
 
-    public function destroy(Group $group, Photo $photo, \App\Contracts\ProtectedMediaStorage $mediaStorage)
+    public function destroy(Group $group, Photo $photo, \App\Services\Storage\StorageUsage $usage, \App\Services\Storage\PlanEntitlements $plans)
     {
         abort_unless($photo->group_id === $group->id, 404);
         $user = Auth::user();
         \Illuminate\Support\Facades\Gate::authorize('delete', $photo);
-        if ($asset = $photo->mediaAsset) { foreach ($asset->variants as $variant) { $mediaStorage->delete($variant->object_key); } $asset->delete(); } else { Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path])); }
-        $photo->delete();
+        if ($asset = $photo->mediaAsset) {
+            $asset->delete();$photo->delete();
+            $usage->record($group->creator,\App\Models\MediaQuotaUsageEvent::PHOTO_DELETED,$asset->quota_units,'photo-deleted-'.$asset->uuid,$group->id,$asset->id,$user->id);
+            \App\Jobs\PurgeDeletedMediaAsset::dispatch($asset->id)->delay(now()->addHours($plans->for($group->creator)['deleted_media_usage_release_hours']))->afterCommit();
+        } else { Storage::disk('public')->delete(array_filter([$photo->path, $photo->thumbnail_path]));$photo->delete(); }
         if (request()->wantsJson()) return response()->json(['deleted' => true]);
         return back()->with('success', 'Photo deleted.');
     }
 
-    public function toggleLike(Group $group, Photo $photo)
+    public function restore(Group $group, int $photo)
     {
-        $this->requirePhotoAccess($group,$photo);
-        $user = Auth::user();
-        if ($photo->likes()->where('user_id', $user->id)->exists()) {
-            $photo->likes()->detach($user->id);
-            $liked = false;
-        } else {
-            $photo->likes()->attach($user->id);
-            $liked = true;
-        }
-        return response()->json(['liked' => $liked, 'count' => $photo->likes()->count()]);
+        $record=Photo::withTrashed()->where('group_id',$group->id)->findOrFail($photo);$this->authorize('delete',$record);
+        $asset=MediaAsset::withTrashed()->where('photo_id',$record->id)->firstOrFail();
+        abort_if($asset->deleted_at?->lte(now()->subHours(app(\App\Services\Storage\PlanEntitlements::class)->for($group->creator)['deleted_media_usage_release_hours'])),410,'This photo can no longer be restored.');
+        $asset->restore();$record->restore();return back()->with('success','Photo restored.');
     }
 
-    public function download(Group $group, Photo $photo)
+    public function toggleLike(Group $group, Photo $photo)
     {
-        $this->requirePhotoAccess($group,$photo);
-        $photo->incrementDownloads();
-        if ($asset = $photo->mediaAsset) return redirect()->route('media.show', [$asset, 'original', 'download' => 1]);
+        $this->assertFavouriteAccess($group, $photo);
+        return $photo->likes()->where('user_id', Auth::id())->exists()
+            ? $this->unfavourite($group, $photo)
+            : $this->favourite($group, $photo);
+    }
+
+    public function favourite(Group $group, Photo $photo)
+    {
+        $this->assertFavouriteAccess($group, $photo);
+        $photo->likes()->syncWithoutDetaching([Auth::id()]);
+        return response()->json(['is_favourite'=>true,'favourites_count'=>$photo->likes()->count(),'message'=>'Added to favourites.']);
+    }
+
+    public function unfavourite(Group $group, Photo $photo)
+    {
+        $this->assertFavouriteAccess($group, $photo);
+        $photo->likes()->detach(Auth::id());
+        return response()->json(['is_favourite'=>false,'favourites_count'=>$photo->likes()->count(),'message'=>'Removed from favourites.']);
+    }
+
+    private function assertFavouriteAccess(Group $group, Photo $photo): void
+    {
+        abort_unless($photo->group_id === $group->id, 404);
+        abort_unless(\Illuminate\Support\Facades\Gate::allows('interact', $photo), 403, 'Favourites are not available for this group.');
+    }
+
+    public function download(Group $group, Photo $photo, \App\Services\Media\MediaDeliveryService $delivery)
+    {
+        abort_unless($photo->group_id === $group->id, 404);
+        \Illuminate\Support\Facades\Gate::authorize('download', $photo);
+        if ($asset = $photo->mediaAsset) {
+            $managed = app(\App\Services\GroupAccessResolver::class)->canManage($group, Auth::user());
+            $requiresWatermark = !$managed && $group->watermark_enabled && $group->creator->watermarkSetting?->hasLogo();
+            $variant = $requiresWatermark ? ($asset->variant('watermarked') ?? $asset->variants()->where('variant_type','watermarked')->where('state','stale')->latest('version')->first()) : ($asset->variant('original') ?? $asset->variant('optimized'));
+            abort_unless($variant, 404);
+            $photo->incrementDownloads();
+            return $delivery->deliver($variant, true, $photo->original_filename);
+        }
         $path = Storage::disk('public')->path($photo->path);
         $watermark = $this->resolveWatermarkConfig($group);
 
         if ($watermark === null) {
-            return response()->download($path, $photo->original_filename);
+            $photo->incrementDownloads();
+            return response()->download($path, $this->safeDownloadFilename($photo));
         }
 
         $tempPath = $this->createWatermarkedCopy($path, $watermark);
-        return response()->download($tempPath, $photo->original_filename)->deleteFileAfterSend(true);
+        $photo->incrementDownloads();
+        return response()->download($tempPath, $this->safeDownloadFilename($photo))->deleteFileAfterSend(true);
+    }
+
+    private function safeDownloadFilename(Photo $photo): string
+    {
+        $extension = match (strtolower((string) $photo->mime_type)) {'image/png'=>'png','image/webp'=>'webp',default=>'jpg'};
+        $base = trim((string) preg_replace('/[^A-Za-z0-9._-]+/', '-', pathinfo(basename(str_replace('\\', '/', (string) $photo->original_filename)), PATHINFO_FILENAME)), '.-_');
+        return substr($base ?: 'lenspic-photo-'.$photo->id, 0, 120).'.'.$extension;
     }
 
     private function resolveWatermarkConfig(Group $group): ?array
@@ -317,7 +361,7 @@ class PhotoController extends Controller
             default => 'jpg',
         };
 
-        $tempPath = sys_get_temp_dir() . '/kwikpic_wm_' . uniqid() . '.' . $extension;
+        $tempPath = sys_get_temp_dir() . '/lenspic_wm_' . uniqid() . '.' . $extension;
 
         switch ($type) {
             case IMAGETYPE_JPEG:
@@ -352,7 +396,7 @@ class PhotoController extends Controller
         $tmpDir = storage_path('app/temp');
         if (!is_dir($tmpDir)) mkdir($tmpDir, 0755, true);
 
-        $zipName = 'kwikpic-' . $group->id . '-' . time() . '.zip';
+        $zipName = 'lenspic-' . $group->id . '-' . time() . '.zip';
         $zipPath = $tmpDir . '/' . $zipName;
 
         $zip = new \ZipArchive();
@@ -414,6 +458,10 @@ class PhotoController extends Controller
         ]);
 
         $photos = $group->photos()->whereIn('id', $validated['photo_ids'])->get();
+        abort_unless($photos->count() === count(array_unique($validated['photo_ids'])), 422, 'Every selected photo must belong to this group.');
+        if ($validated['folder_id'] ?? null) {
+            $group->folders()->findOrFail($validated['folder_id']);
+        }
         $moved = 0;
 
         foreach ($photos as $photo) {

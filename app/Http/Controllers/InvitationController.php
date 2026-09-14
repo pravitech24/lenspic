@@ -38,7 +38,7 @@ class InvitationController extends Controller
         return Inertia::render('Invitations/Show', [
             'status' => $state,
             'authenticated' => (bool)$request->user(),
-            'onboardingComplete' => (bool)$request->user()?->onboarding_completed_at,
+            'onboardingComplete' => ($request->user() && app(\App\Services\Auth\OnboardingState::class)->complete($request->user())),
             'event' => $invite && in_array($state, ['valid','already_accepted'], true) ? [
                 'id' => $invite->group_id,
                 'name' => $invite->group->name,
@@ -57,11 +57,11 @@ class InvitationController extends Controller
         if (!$invite || !hash_equals((string)$request->session()->get('pending_invitation'), $token)) return redirect()->route('invitations.show',['token'=>$token,'state'=>'session_expired']);
         abort_unless((int)$request->session()->get('pending_invitation_group') === $invite->group_id, 403);
         abort_unless($this->state($invite) === 'valid', 410, 'This invitation is no longer available.');
-        abort_unless($request->user()?->onboarding_completed_at, 403);
+        abort_unless($request->user() && app(\App\Services\Auth\OnboardingState::class)->complete($request->user()), 403);
         $result = app(GroupController::class)->joinUser($invite->group, $request->user(), 'invitation_link', $invite);
         $request->session()->forget(['pending_invitation','pending_invitation_group']);
         $message = match($result){'upgraded'=>'Your access was upgraded.','existing'=>'You already joined this event.',default=>'Welcome to the event.'};
-        return redirect()->route($invite->access_type === GroupAccessInvite::PARTIAL ? 'biometric.page' : 'groups.show', $invite->group)->with('success', $message);
+        return redirect()->route('groups.show', $invite->group)->with('success', $message);
     }
 
     public function decline(Request $request, string $token)

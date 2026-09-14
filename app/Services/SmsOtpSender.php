@@ -9,6 +9,6 @@ class SmsOtpSender implements OtpSender
 {
     public function send(string $mobileE164, string $code): void
     {
-        throw new RuntimeException('SMS delivery is reserved for future configuration. Set OTP_DRIVER=whatsapp for now.');
+        throw new RuntimeException('Use the Twilio Verify SMS channel; locally generated SMS codes are not supported.');
     }
 }

@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Photo extends Model
 {
+    use SoftDeletes;
     protected $fillable = [
         'group_id', 'uploader_id', 'filename', 'original_filename',
         'path', 'thumbnail_path', 'file_size', 'mime_type',

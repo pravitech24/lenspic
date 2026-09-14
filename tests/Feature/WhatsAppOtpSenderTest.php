@@ -8,8 +8,10 @@ use Tests\TestCase;
 
 class WhatsAppOtpSenderTest extends TestCase
 {
+    use \Illuminate\Foundation\Testing\RefreshDatabase;
     public function test_it_sends_a_meta_whatsapp_authentication_template(): void
     {
+        config(['whatsapp.app_secret'=>'test-secret','whatsapp.webhook_verify_token'=>'test-verify']);
         config()->set('otp.whatsapp', [
             'graph_version' => 'v23.0',
             'phone_number_id' => '12345',
@@ -20,7 +22,7 @@ class WhatsAppOtpSenderTest extends TestCase
         ]);
         Http::fake(['graph.facebook.com/*' => Http::response(['messages' => [['id' => 'message-id']]])]);
 
-        app(WhatsAppOtpSender::class)->send('+919876543210', '123456');
+        app(WhatsAppOtpSender::class)->send('+919876543210', '123456', 'challenge-reference');
 
         Http::assertSent(fn ($request) =>
             $request->url() === 'https://graph.facebook.com/v23.0/12345/messages'
