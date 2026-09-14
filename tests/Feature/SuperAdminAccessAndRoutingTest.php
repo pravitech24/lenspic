@@ -30,6 +30,48 @@ class SuperAdminAccessAndRoutingTest extends TestCase
         $this->post(route('login'), ['email' => $photographer->email, 'password' => 'password'])->assertRedirect(route('dashboard'));
     }
 
+    public function test_inertia_password_login_navigates_the_browser_for_each_account_type(): void
+    {
+        $owner = $this->user('navigation-owner@test.local');
+        $group = Group::create(['name' => 'Navigation Gallery', 'creator_id' => $owner->id]);
+        foreach (['super_admin', 'photographer', 'team', 'member', 'user', 'incomplete'] as $kind) {
+            $user = $this->user($kind.'-navigation@test.local', [
+                'role' => $kind === 'super_admin' ? 'super_admin' : 'user',
+                'account_type' => in_array($kind, ['photographer', 'incomplete']) ? 'photographer' : 'user',
+                'onboarding_completed_at' => $kind === 'incomplete' ? null : now(),
+            ]);
+            if ($kind === 'team') {
+                StudioTeamMembership::create(['uuid' => (string) Str::uuid(), 'studio_owner_id' => $owner->id, 'user_id' => $user->id, 'role' => 'viewer', 'status' => 'active']);
+            }
+            if ($kind === 'member') {
+                $group->members()->attach($user->id, ['role' => 'member', 'membership_status' => 'active', 'access_type' => 'full_access']);
+            }
+            $destination = route(match ($kind) {
+                'super_admin' => 'super-admin.dashboard',
+                'team', 'member' => 'groups.index',
+                'incomplete' => 'onboarding.resume',
+                default => 'dashboard',
+            });
+            $this->withHeader('X-Inertia', 'true')->post(route('login'), ['email' => $user->email, 'password' => 'password'])
+                ->assertStatus(409)->assertHeader('X-Inertia-Location', $destination)->assertContent('');
+            $this->assertAuthenticatedAs($user);
+            $this->flushHeaders();
+            $response = $this->get($destination);
+            if ($kind === 'incomplete') $response->assertRedirect(route('onboarding.profile'));
+            else $response->assertOk();
+            auth()->logout();
+        }
+    }
+
+    public function test_invalid_inertia_login_keeps_validation_errors_without_navigating(): void
+    {
+        $user = $this->user('invalid-navigation@test.local');
+        $this->withHeader('X-Inertia', 'true')->from(route('login'))
+            ->post(route('login'), ['email' => $user->email, 'password' => 'incorrect'])
+            ->assertRedirect(route('login'))->assertSessionHasErrors('email')->assertHeaderMissing('X-Inertia-Location');
+        $this->assertGuest();
+    }
+
     public function test_team_and_group_members_land_in_the_authorized_groups_workspace(): void
     {
         $owner = $this->user('owner-routing@test.local');

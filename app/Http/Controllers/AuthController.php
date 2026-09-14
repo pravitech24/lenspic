@@ -35,7 +35,9 @@ class AuthController extends Controller
         $request->validate(['email'=>'required|email','password'=>'required']);
         if (!Auth::attempt($request->only('email','password'), $request->boolean('remember'))) throw ValidationException::withMessages(['email'=>'Invalid credentials.']);
         $request->session()->regenerate();
-        return redirect()->to(app(AuthenticatedLanding::class)->afterAuthentication($request));
+        // Login may land on Blade or Inertia pages. Navigate the browser so Blade
+        // responses are not displayed in Inertia's non-Inertia response modal.
+        return Inertia::location(app(AuthenticatedLanding::class)->afterAuthentication($request));
     }
     public function register(Request $request) { return $this->sendOtp($request, app(OtpSender::class), app(EmailOtpSender::class)); }
 

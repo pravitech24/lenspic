@@ -15,7 +15,7 @@ class DatabaseSeeder extends Seeder
         $admin = User::create([
             'name'              => 'Super Admin',
             'email'             => 'admin@lenspic.in',
-            'password'          => Hash::make('password'),
+            'password'          => Hash::make('admin@123'),
             'email_verified_at' => now(),
             'is_admin'          => true,
             'role'              => 'super_admin',
@@ -24,10 +24,11 @@ class DatabaseSeeder extends Seeder
         $demo = User::create([
             'name'              => 'Demo User',
             'email'             => 'demo@lenspic.in',
-            'password'          => Hash::make('password'),
+            'password'          => Hash::make('demo@123'),
             'email_verified_at' => now(),
             'is_admin'          => false,
-            'role'              => 'photographer',
+            // Photographer is an account type; the platform role remains user.
+            'role'              => 'user',
             'account_type'      => 'photographer',
         ]);
 
