@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             'password'          => Hash::make('password'),
             'email_verified_at' => now(),
             'is_admin'          => true,
+            'role'              => 'super_admin',
         ]);
 
         $demo = User::create([
@@ -26,6 +27,8 @@ class DatabaseSeeder extends Seeder
             'password'          => Hash::make('password'),
             'email_verified_at' => now(),
             'is_admin'          => false,
+            'role'              => 'photographer',
+            'account_type'      => 'photographer',
         ]);
 
         $groups = [
