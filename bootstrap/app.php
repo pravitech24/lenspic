@@ -14,7 +14,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->web(append: [\App\Http\Middleware\ProductionSecurity::class, \App\Http\Middleware\HandleInertiaRequests::class]);
+        $middleware->web(append: [\App\Http\Middleware\ProductionSecurity::class, \App\Http\Middleware\TrackUserActivity::class, \App\Http\Middleware\HandleInertiaRequests::class]);
         $middleware->alias(["platform.admin" => EnsurePlatformAdmin::class, "entitlement" => \App\Http\Middleware\RequireSubscriptionEntitlement::class, "analytics.access" => \App\Http\Middleware\RequireAnalyticsAccess::class]);
         $middleware->validateCsrfTokens(except: [
             'webhooks/whatsapp',
